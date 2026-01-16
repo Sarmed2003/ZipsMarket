@@ -2,10 +2,11 @@
 -- Run this in a NEW QUERY in Supabase SQL Editor (separate from the main schema)
 
 -- Update the email domain check function to allow test email
+-- Note: Fix the email - it should be 'sarmedmahmood91903@gmail.com' (with double 'o')
 CREATE OR REPLACE FUNCTION public.check_user_domain()
 RETURNS TRIGGER AS $$
 BEGIN
-  -- Allow test email for development
+  -- Allow test email for development (note: double 'o' in mahmood)
   IF NEW.email = 'sarmedmahmood91903@gmail.com' THEN
     RETURN NEW;
   END IF;
@@ -18,10 +19,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Add profile picture and bio to profiles table
-ALTER TABLE public.profiles 
-ADD COLUMN IF NOT EXISTS profile_picture TEXT,
-ADD COLUMN IF NOT EXISTS bio TEXT;
+-- Add profile picture column (must be separate statements)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'profiles' 
+    AND column_name = 'profile_picture'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN profile_picture TEXT;
+  END IF;
+END $$;
+
+-- Add bio column (must be separate statements)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_schema = 'public' 
+    AND table_name = 'profiles' 
+    AND column_name = 'bio'
+  ) THEN
+    ALTER TABLE public.profiles ADD COLUMN bio TEXT;
+  END IF;
+END $$;
 
 -- Create messages table for buyer-seller communication
 CREATE TABLE IF NOT EXISTS public.messages (
@@ -36,6 +58,11 @@ CREATE TABLE IF NOT EXISTS public.messages (
 
 -- Enable RLS on messages
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist (to avoid conflicts)
+DROP POLICY IF EXISTS "Users can view own messages" ON public.messages;
+DROP POLICY IF EXISTS "Users can create messages" ON public.messages;
+DROP POLICY IF EXISTS "Users can update own messages" ON public.messages;
 
 -- Messages policies
 CREATE POLICY "Users can view own messages"
@@ -53,3 +80,6 @@ CREATE POLICY "Users can update own messages"
 -- Create index for faster message queries
 CREATE INDEX IF NOT EXISTS idx_messages_listing_id ON public.messages(listing_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_receiver ON public.messages(sender_id, receiver_id);
+
+-- Refresh the schema cache (this helps Supabase recognize the new columns)
+NOTIFY pgrst, 'reload schema';

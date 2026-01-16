@@ -35,13 +35,16 @@ export const AuthProvider = ({ children }) => {
 
   const signUp = async (email, password) => {
     // Validate email domain (allow test email for development)
+    // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
     const testEmail = 'sarmedmahmood91903@gmail.com'
-    if (!email.endsWith('@uakron.edu') && email !== testEmail) {
+    const normalizedEmail = email.trim().toLowerCase()
+    
+    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== testEmail) {
       throw new Error('Only @uakron.edu email addresses are allowed (or the test email)')
     }
 
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/`,

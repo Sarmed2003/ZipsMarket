@@ -18,8 +18,10 @@ export default function Login() {
     setLoading(true)
 
     try {
+      // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
       const testEmail = 'sarmedmahmood91903@gmail.com'
-      if (!email.endsWith('@uakron.edu') && email !== testEmail) {
+      const normalizedEmail = email.trim().toLowerCase()
+      if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== testEmail) {
         setError('Please use your @uakron.edu email address')
         setLoading(false)
         return

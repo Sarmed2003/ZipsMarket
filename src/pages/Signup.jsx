@@ -18,8 +18,10 @@ export default function Signup() {
     e.preventDefault()
     setError('')
 
+    // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
     const testEmail = 'sarmedmahmood91903@gmail.com'
-    if (!email.endsWith('@uakron.edu') && email !== testEmail) {
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== testEmail) {
       setError('Please use your @uakron.edu email address')
       return
     }
@@ -37,7 +39,7 @@ export default function Signup() {
     setLoading(true)
 
     try {
-      const result = await signUp(email, password)
+      const result = await signUp(email.trim().toLowerCase(), password)
       // Check if email confirmation is required
       if (result.user && !result.session) {
         setError('Please check your email to confirm your account before signing in.')
