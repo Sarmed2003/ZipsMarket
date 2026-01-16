@@ -2,14 +2,19 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Package, Star, DollarSign } from 'lucide-react'
+import { Package, Star, DollarSign, Edit2, Upload, X } from 'lucide-react'
 
 export default function Profile() {
   const { user } = useAuth()
   const [listings, setListings] = useState([])
   const [sales, setSales] = useState([])
   const [rating, setRating] = useState(null)
+  const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(false)
+  const [profilePicture, setProfilePicture] = useState('')
+  const [bio, setBio] = useState('')
+  const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -17,6 +22,20 @@ export default function Profile() {
 
   const fetchData = async () => {
     try {
+      // Fetch profile
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      if (profileError && profileError.code !== 'PGRST116') throw profileError
+      setProfile(profileData)
+      if (profileData) {
+        setProfilePicture(profileData.profile_picture || '')
+        setBio(profileData.bio || '')
+      }
+
       // Fetch user's listings
       const { data: listingsData, error: listingsError } = await supabase
         .from('listings')
@@ -55,6 +74,54 @@ export default function Profile() {
     }
   }
 
+  const handleImageSelect = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+
+    setUploading(true)
+    try {
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${user.id}/${Math.random()}.${fileExt}`
+      const filePath = `profile-pictures/${fileName}`
+
+      const { error: uploadError } = await supabase.storage
+        .from('listing-images')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) throw uploadError
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('listing-images').getPublicUrl(filePath)
+
+      setProfilePicture(publicUrl)
+    } catch (error) {
+      console.error('Error uploading image:', error)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handleSaveProfile = async () => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: user.id,
+          email: user.email,
+          profile_picture: profilePicture,
+          bio: bio,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (error) throw error
+      setEditing(false)
+      fetchData()
+    } catch (error) {
+      console.error('Error saving profile:', error)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -71,8 +138,87 @@ export default function Profile() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">My Profile</h1>
-          <p className="text-gray-600 mb-6">{user.email}</p>
+          <div className="flex items-start justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                {profilePicture ? (
+                  <img
+                    src={profilePicture}
+                    alt="Profile"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-[#A89968]/20"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-[#041E42] to-[#A89968] flex items-center justify-center text-white text-2xl font-bold border-4 border-[#A89968]/20">
+                    {user.email?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
+                {editing && (
+                  <label className="absolute bottom-0 right-0 bg-[#041E42] text-white p-2 rounded-full cursor-pointer hover:bg-[#031832] transition-colors">
+                    <Upload className="w-4 h-4" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                )}
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+                <p className="text-gray-600">{user.email}</p>
+                {bio && !editing && (
+                  <p className="text-gray-700 mt-3 max-w-2xl">{bio}</p>
+                )}
+              </div>
+            </div>
+            {!editing ? (
+              <button
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-2 text-[#041E42] hover:text-[#A89968] transition-colors"
+              >
+                <Edit2 className="w-5 h-5" />
+                Edit Profile
+              </button>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setEditing(false)
+                    setProfilePicture(profile?.profile_picture || '')
+                    setBio(profile?.bio || '')
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveProfile}
+                  disabled={uploading}
+                  className="px-4 py-2 bg-gradient-to-r from-[#041E42] to-[#031832] text-white rounded-lg hover:from-[#031832] hover:to-[#041E42] transition-all disabled:opacity-50"
+                >
+                  Save
+                </button>
+              </div>
+            )}
+          </div>
+
+          {editing && (
+            <div className="mt-6 p-6 bg-gray-50 rounded-lg">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Bio / About Me
+              </label>
+              <textarea
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Tell other users about yourself..."
+                rows={4}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#041E42] focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-2">Share a bit about yourself to help build trust with buyers and sellers.</p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gradient-to-br from-[#041E42]/10 to-[#A89968]/10 rounded-xl p-6 border border-[#A89968]/20 shadow-md">

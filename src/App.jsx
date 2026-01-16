@@ -8,6 +8,7 @@ import ListingDetail from './pages/ListingDetail'
 import CreateListing from './pages/CreateListing'
 import Purchases from './pages/Purchases'
 import Profile from './pages/Profile'
+import Chat from './pages/Chat'
 import './App.css'
 
 function AppRoutes() {
@@ -68,6 +69,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Profile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/chat/:id"
+        element={
+          <ProtectedRoute>
+            <Chat />
           </ProtectedRoute>
         }
       />

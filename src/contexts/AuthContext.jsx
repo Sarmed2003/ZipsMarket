@@ -34,8 +34,9 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const signUp = async (email, password) => {
-    // Validate email domain
-    if (!email.endsWith('@uakron.edu')) {
+    // Validate email domain (allow test email for development)
+    const testEmail = 'sarmedmahmood91903@gmail.com'
+    if (!email.endsWith('@uakron.edu') && email !== testEmail) {
       throw new Error('Only @uakron.edu email addresses are allowed')
     }
 
@@ -49,8 +50,9 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signIn = async (email, password) => {
-    // Validate email domain
-    if (!email.endsWith('@uakron.edu')) {
+    // Validate email domain (allow test email for development)
+    const testEmail = 'sarmedmahmood91903@gmail.com'
+    if (!email.endsWith('@uakron.edu') && email !== testEmail) {
       throw new Error('Only @uakron.edu email addresses are allowed')
     }
 

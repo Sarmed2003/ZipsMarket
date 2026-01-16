@@ -24,11 +24,33 @@ export default function ListingDetail() {
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('*, profiles(*)')
+        .select(`
+          *,
+          profiles:seller_id (
+            id,
+            email,
+            profile_picture,
+            bio
+          )
+        `)
         .eq('id', id)
         .single()
 
       if (error) throw error
+      
+      // If profile doesn't exist, create a minimal one
+      if (!data.profiles) {
+        const { data: userData } = await supabase.auth.getUser()
+        if (userData?.user) {
+          data.profiles = {
+            id: data.user_id,
+            email: userData.user.email || 'Unknown',
+            profile_picture: null,
+            bio: null
+          }
+        }
+      }
+      
       setListing(data)
     } catch (error) {
       console.error('Error fetching listing:', error)

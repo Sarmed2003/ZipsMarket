@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Search, Plus, User, LogOut } from 'lucide-react'
+import { Search, Plus, User, LogOut, MessageCircle, ShoppingCart } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -20,7 +20,15 @@ export default function Home() {
     try {
       const { data, error } = await supabase
         .from('listings')
-        .select('*, profiles(*)')
+        .select(`
+          *,
+          profiles:seller_id (
+            id,
+            email,
+            profile_picture,
+            bio
+          )
+        `)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -123,41 +131,63 @@ export default function Home() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredListings.map((listing) => (
-              <Link
-                key={listing.id}
-                to={`/listing/${listing.id}`}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200"
-              >
-                <div className="aspect-square bg-gray-200 relative overflow-hidden">
-                  {listing.images && listing.images.length > 0 ? (
-                    <img
-                      src={listing.images[0]}
-                      alt={listing.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      No Image
+            {filteredListings.map((listing) => {
+              const isOwner = user?.id === listing.user_id
+              return (
+                <div
+                  key={listing.id}
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200 flex flex-col"
+                >
+                  <Link to={`/listing/${listing.id}`} className="flex-1">
+                    <div className="aspect-square bg-gray-200 relative overflow-hidden">
+                      {listing.images && listing.images.length > 0 ? (
+                        <img
+                          src={listing.images[0]}
+                          alt={listing.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-gray-400">
+                          No Image
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-4">
+                      <h3 className="font-semibold text-lg text-gray-900 mb-1 truncate">
+                        {listing.title}
+                      </h3>
+                      <p className="text-2xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent mb-2">
+                        ${parseFloat(listing.price).toFixed(2)}
+                      </p>
+                      <p className="text-sm text-gray-600 line-clamp-2">{listing.description}</p>
+                      {listing.profiles && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          {listing.profiles.email?.split('@')[0] || 'Seller'}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                  {!isOwner && (
+                    <div className="p-4 pt-0 flex gap-2">
+                      <button
+                        onClick={() => navigate(`/chat/${listing.id}`)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        Message Seller
+                      </button>
+                      <button
+                        onClick={() => navigate(`/chat/${listing.id}?buy=true`)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        Buy Now
+                      </button>
                     </div>
                   )}
                 </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-900 mb-1 truncate">
-                    {listing.title}
-                  </h3>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent mb-2">
-                    ${parseFloat(listing.price).toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-600 line-clamp-2">{listing.description}</p>
-                  {listing.profiles && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      {listing.profiles.email?.split('@')[0] || 'Seller'}
-                    </p>
-                  )}
-                </div>
-              </Link>
-            ))}
+              )
+            })}
           </div>
         )}
       </main>
