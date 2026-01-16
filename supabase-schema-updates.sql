@@ -1,5 +1,22 @@
 -- Additional schema updates for ZipsMarket
--- Run this AFTER the main supabase-schema.sql
+-- Run this in a NEW QUERY in Supabase SQL Editor (separate from the main schema)
+
+-- Update the email domain check function to allow test email
+CREATE OR REPLACE FUNCTION public.check_user_domain()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Allow test email for development
+  IF NEW.email = 'sarmedmahmood91903@gmail.com' THEN
+    RETURN NEW;
+  END IF;
+  
+  -- Require @uakron.edu for all other emails
+  IF NEW.email NOT LIKE '%@uakron.edu' THEN
+    RAISE EXCEPTION 'Only @uakron.edu email addresses are allowed';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Add profile picture and bio to profiles table
 ALTER TABLE public.profiles 

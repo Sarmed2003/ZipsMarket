@@ -104,21 +104,32 @@ export default function Profile() {
 
   const handleSaveProfile = async () => {
     try {
+      setUploading(true)
       const { error } = await supabase
         .from('profiles')
         .upsert({
           id: user.id,
           email: user.email,
-          profile_picture: profilePicture,
-          bio: bio,
+          profile_picture: profilePicture || null,
+          bio: bio || null,
           updated_at: new Date().toISOString(),
+        }, {
+          onConflict: 'id'
         })
 
-      if (error) throw error
+      if (error) {
+        console.error('Profile save error:', error)
+        alert('Error saving profile: ' + error.message)
+        throw error
+      }
+      
       setEditing(false)
-      fetchData()
+      await fetchData()
     } catch (error) {
       console.error('Error saving profile:', error)
+      alert('Failed to save profile. Please try again.')
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -198,7 +209,7 @@ export default function Profile() {
                   disabled={uploading}
                   className="px-4 py-2 bg-gradient-to-r from-[#041E42] to-[#031832] text-white rounded-lg hover:from-[#031832] hover:to-[#041E42] transition-all disabled:opacity-50"
                 >
-                  Save
+                  {uploading ? 'Saving...' : 'Save'}
                 </button>
               </div>
             )}

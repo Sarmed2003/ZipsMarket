@@ -19,7 +19,7 @@ body {
 @keyframes fadeIn {
   from {
     opacity: 0;
-  }
+}
   to {
     opacity: 1;
   }
@@ -29,11 +29,11 @@ body {
   from {
     transform: translateY(20px);
     opacity: 0;
-  }
+}
   to {
     transform: translateY(0);
     opacity: 1;
-  }
+}
 }
 
 @keyframes glow {
@@ -55,4 +55,4 @@ body {
 
 .animate-glow {
   animation: glow 2s ease-in-out infinite alternate;
-}
+  }

@@ -37,10 +37,19 @@ export default function Signup() {
     setLoading(true)
 
     try {
-      await signUp(email, password)
-      navigate('/')
+      const result = await signUp(email, password)
+      // Check if email confirmation is required
+      if (result.user && !result.session) {
+        setError('Please check your email to confirm your account before signing in.')
+        setTimeout(() => {
+          navigate('/login')
+        }, 3000)
+      } else {
+        navigate('/')
+      }
     } catch (err) {
-      setError(err.message || 'Failed to create account')
+      console.error('Signup error:', err)
+      setError(err.message || 'Failed to create account. Make sure the email domain is allowed.')
     } finally {
       setLoading(false)
     }
