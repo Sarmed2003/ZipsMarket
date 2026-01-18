@@ -34,24 +34,53 @@ export default function Chat() {
 
   const fetchListing = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch listing
+      const { data: listingData, error: listingError } = await supabase
         .from('listings')
-        .select('*, profiles:seller_id(*)')
+        .select('*')
         .eq('id', listingId)
         .single()
 
-      if (error) throw error
-      setListing(data)
+      if (listingError) throw listingError
+      
+      if (!listingData) {
+        console.error('Listing not found')
+        return
+      }
+
+      setListing(listingData)
 
       // Determine other user (seller if buyer, buyer if seller)
-      const otherUserId = data.user_id === user.id ? null : data.user_id
+      const otherUserId = listingData.user_id === user.id ? null : listingData.user_id
       if (otherUserId) {
         const { data: profileData } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', otherUserId)
           .single()
-        setOtherUser(profileData)
+        setOtherUser(profileData || null)
+      } else {
+        // If we're the seller, we need to get buyer info from messages
+        const { data: messagesData } = await supabase
+          .from('messages')
+          .select('sender_id, receiver_id')
+          .eq('listing_id', listingId)
+          .limit(1)
+          
+        if (messagesData && messagesData.length > 0) {
+          const buyerId = messagesData[0].sender_id === user.id 
+            ? messagesData[0].receiver_id 
+            : messagesData[0].sender_id
+          
+          if (buyerId) {
+            const { data: profileData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', buyerId)
+              .single()
+            setOtherUser(profileData || null)
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching listing:', error)
@@ -99,25 +128,52 @@ export default function Chat() {
 
   const sendMessage = async (e) => {
     e.preventDefault()
-    if (!newMessage.trim() || !listing) return
+    if (!newMessage.trim() || !listing) {
+      console.log('Cannot send: message empty or listing missing', { newMessage: newMessage.trim(), listing })
+      return
+    }
 
-    // Receiver is the seller (listing owner) if current user is buyer, or buyer if current user is seller
-    // For now, we'll set receiver as the listing owner if user is not the owner
-    const receiverId = listing.user_id === user.id ? null : listing.user_id
+    // Receiver is the seller (listing owner) if current user is buyer
+    // If current user is seller, we need to find the buyer from messages
+    let receiverId = listing.user_id
+    
+    if (listing.user_id === user.id) {
+      // We're the seller, find the buyer from existing messages
+      const { data: messagesData } = await supabase
+        .from('messages')
+        .select('sender_id, receiver_id')
+        .eq('listing_id', listingId)
+        .neq('sender_id', user.id)
+        .limit(1)
+        .single()
+      
+      if (messagesData) {
+        receiverId = messagesData.sender_id === user.id ? messagesData.receiver_id : messagesData.sender_id
+      } else {
+        // No existing messages, can't determine buyer yet
+        alert('Please wait for a buyer to message you first, or use the Buy Now button from the listing.')
+        return
+      }
+    }
 
     try {
       const { error } = await supabase.from('messages').insert({
         listing_id: listingId,
         sender_id: user.id,
-        receiver_id: receiverId || listing.user_id,
+        receiver_id: receiverId,
         message: newMessage.trim(),
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error inserting message:', error)
+        throw error
+      }
+      
       setNewMessage('')
       inputRef.current?.focus()
     } catch (error) {
       console.error('Error sending message:', error)
+      alert('Failed to send message: ' + error.message)
     }
   }
 
@@ -156,7 +212,7 @@ export default function Chat() {
               {listing?.title || 'Chat'}
             </h1>
             <p className="text-sm text-gray-600">
-              {otherUser?.email?.split('@')[0] || listing?.profiles?.email?.split('@')[0] || 'Seller'}
+              {otherUser?.email?.split('@')[0] || (listing?.user_id === user.id ? 'Buyer' : 'Seller')}
             </p>
           </div>
           {buyNow && (
@@ -232,7 +288,7 @@ export default function Chat() {
             </div>
             <button
               type="submit"
-              disabled={!newMessage.trim()}
+              disabled={!newMessage.trim() || !listing}
               className="bg-gradient-to-r from-[#041E42] to-[#031832] text-white p-3 rounded-full hover:from-[#031832] hover:to-[#041E42] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Send className="w-5 h-5" />

@@ -22,38 +22,42 @@ export default function ListingDetail() {
 
   const fetchListing = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch listing first
+      const { data: listingData, error: listingError } = await supabase
         .from('listings')
-        .select(`
-          *,
-          profiles:seller_id (
-            id,
-            email,
-            profile_picture,
-            bio
-          )
-        `)
+        .select('*')
         .eq('id', id)
         .single()
 
-      if (error) throw error
-      
-      // If profile doesn't exist, create a minimal one
-      if (!data.profiles) {
-        const { data: userData } = await supabase.auth.getUser()
-        if (userData?.user) {
-          data.profiles = {
-            id: data.user_id,
-            email: userData.user.email || 'Unknown',
-            profile_picture: null,
-            bio: null
-          }
-        }
+      if (listingError) {
+        console.error('Error fetching listing:', listingError)
+        throw listingError
       }
-      
-      setListing(data)
+
+      if (!listingData) {
+        throw new Error('Listing not found')
+      }
+
+      // Fetch profile for the seller
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, profile_picture, bio')
+        .eq('id', listingData.user_id)
+        .single()
+
+      // Combine listing with profile (profile might not exist yet)
+      setListing({
+        ...listingData,
+        profiles: profileData || {
+          id: listingData.user_id,
+          email: 'Unknown',
+          profile_picture: null,
+          bio: null
+        }
+      })
     } catch (error) {
       console.error('Error fetching listing:', error)
+      setListing(null)
     } finally {
       setLoading(false)
     }
