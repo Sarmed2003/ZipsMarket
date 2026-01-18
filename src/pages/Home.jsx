@@ -18,23 +18,32 @@ export default function Home() {
 
   const fetchListings = async () => {
     try {
+      // Fetch all listings - should be publicly visible regardless of user
       const { data, error } = await supabase
         .from('listings')
         .select(`
           *,
-          profiles:seller_id (
+          profiles:user_id (
             id,
             email,
             profile_picture,
             bio
           )
         `)
+        .eq('sold', false) // Only show unsold listings
         .order('created_at', { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error('Error fetching listings:', error)
+        throw error
+      }
+      
+      console.log('Fetched listings:', data?.length || 0, 'listings')
       setListings(data || [])
     } catch (error) {
       console.error('Error fetching listings:', error)
+      // Show error to user
+      alert('Error loading listings: ' + error.message)
     } finally {
       setLoading(false)
     }
