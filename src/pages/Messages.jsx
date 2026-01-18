@@ -220,11 +220,18 @@ export default function Messages() {
                 )}
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-2 mb-1">
                     <h3 className="font-semibold text-lg text-gray-900 truncate">
                       {conversation.listing?.title || 'Listing'}
                     </h3>
-                    <span className="text-sm text-gray-500 ml-2">
+                    {conversation.listing?.images?.[0] && (
+                      <img
+                        src={conversation.listing.images[0]}
+                        alt={conversation.listing.title}
+                        className="w-8 h-8 object-cover rounded-md flex-shrink-0"
+                      />
+                    )}
+                    <span className="text-sm text-gray-500 ml-auto flex-shrink-0">
                       {formatTime(conversation.last_message.created_at)}
                     </span>
                   </div>

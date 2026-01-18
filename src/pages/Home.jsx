@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Search, Plus, User, LogOut, MessageCircle, ShoppingCart, Inbox } from 'lucide-react'
+import { Search, Plus, User, LogOut, MessageCircle, ShoppingCart, Inbox, Heart, Users } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
 
@@ -9,12 +9,19 @@ export default function Home() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [likedListings, setLikedListings] = useState(new Set())
+  const [unreadCount, setUnreadCount] = useState(0)
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetchListings()
-  }, [])
+    if (user) {
+      fetchListings()
+      fetchLikedListings()
+      fetchUnreadCount()
+      setupRealtime()
+    }
+  }, [user])
 
   const fetchListings = async () => {
     try {
@@ -56,6 +63,101 @@ export default function Home() {
   const handleSignOut = async () => {
     await signOut()
     navigate('/login')
+  }
+
+  const fetchLikedListings = async () => {
+    if (!user) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('likes')
+        .select('listing_id')
+        .eq('user_id', user.id)
+
+      if (error) throw error
+      setLikedListings(new Set(data?.map(l => l.listing_id) || []))
+    } catch (error) {
+      console.error('Error fetching liked listings:', error)
+    }
+  }
+
+  const fetchUnreadCount = async () => {
+    if (!user) return
+    
+    try {
+      const { count, error } = await supabase
+        .from('messages')
+        .select('*', { count: 'exact', head: true })
+        .eq('receiver_id', user.id)
+        .eq('read', false)
+
+      if (error) throw error
+      setUnreadCount(count || 0)
+    } catch (error) {
+      console.error('Error fetching unread count:', error)
+    }
+  }
+
+  const setupRealtime = () => {
+    if (!user) return
+
+    const channel = supabase
+      .channel('home-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `receiver_id=eq.${user.id}`,
+        },
+        () => {
+          fetchUnreadCount()
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }
+
+  const handleLike = async (listingId) => {
+    if (!user) return
+
+    const isLiked = likedListings.has(listingId)
+
+    try {
+      if (isLiked) {
+        // Unlike
+        const { error } = await supabase
+          .from('likes')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('listing_id', listingId)
+
+        if (error) throw error
+        setLikedListings(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(listingId)
+          return newSet
+        })
+      } else {
+        // Like
+        const { error } = await supabase
+          .from('likes')
+          .insert({
+            user_id: user.id,
+            listing_id: listingId,
+          })
+
+        if (error) throw error
+        setLikedListings(prev => new Set(prev).add(listingId))
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error)
+      alert('Failed to like/unlike item')
+    }
   }
 
   const filteredListings = listings.filter((listing) =>
@@ -100,11 +202,32 @@ export default function Home() {
               </Link>
               <Link
                 to="/messages"
-                className="flex items-center gap-2 text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10"
+                className="flex items-center gap-2 text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10 relative"
                 title="Messages"
               >
                 <Inbox className="w-5 h-5" />
                 <span className="hidden sm:inline">Messages</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-semibold rounded-full w-5 h-5 flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+              <Link
+                to="/following"
+                className="flex items-center gap-2 text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10"
+                title="Following"
+              >
+                <Users className="w-5 h-5" />
+                <span className="hidden sm:inline">Following</span>
+              </Link>
+              <Link
+                to="/likes"
+                className="flex items-center gap-2 text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10"
+                title="Likes"
+              >
+                <Heart className="w-5 h-5" />
+                <span className="hidden sm:inline">Likes</span>
               </Link>
               <Link
                 to="/purchases"
@@ -154,11 +277,31 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredListings.map((listing) => {
               const isOwner = user?.id === listing.user_id
+              const isLiked = likedListings.has(listing.id)
               return (
                 <div
                   key={listing.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200 flex flex-col"
+                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200 flex flex-col relative"
                 >
+                  {/* Like button */}
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault()
+                      e.stopPropagation()
+                      handleLike(listing.id)
+                    }}
+                    className="absolute top-3 right-3 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-colors"
+                    title={isLiked ? 'Remove from likes' : 'Add to likes'}
+                  >
+                    <Heart
+                      className={`w-5 h-5 ${
+                        isLiked
+                          ? 'fill-red-500 text-red-500'
+                          : 'text-gray-600 hover:text-red-500'
+                      } transition-colors`}
+                    />
+                  </button>
+
                   <Link to={`/listing/${listing.id}`} className="flex-1">
                     <div className="aspect-square bg-gray-200 relative overflow-hidden">
                       {listing.images && listing.images.length > 0 ? (

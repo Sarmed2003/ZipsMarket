@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft, Heart, MessageCircle, Star } from 'lucide-react'
-import { Elements } from '@stripe/react-stripe-js'
-import stripePromise from '../lib/stripe'
-import CheckoutForm from '../components/CheckoutForm'
+import { ArrowLeft } from 'lucide-react'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -14,7 +11,6 @@ export default function ListingDetail() {
   const [listing, setListing] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
-  const [showCheckout, setShowCheckout] = useState(false)
 
   useEffect(() => {
     fetchListing()
@@ -155,28 +151,13 @@ export default function ListingDetail() {
                 </div>
               )}
 
-              {!isOwner && !showCheckout && (
-                <button
-                  onClick={() => setShowCheckout(true)}
-                  className="w-full bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              {!isOwner && (
+                <Link
+                  to={`/checkout/${listing.id}`}
+                  className="block w-full bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-center"
                 >
                   Purchase Item
-                </button>
-              )}
-
-              {showCheckout && (
-                <div className="mt-6 p-6 bg-gray-50 rounded-lg">
-                  <h3 className="text-xl font-semibold mb-4">Complete Purchase</h3>
-                  <Elements stripe={stripePromise}>
-                    <CheckoutForm
-                      listing={listing}
-                      onSuccess={() => {
-                        setShowCheckout(false)
-                        navigate('/purchases')
-                      }}
-                    />
-                  </Elements>
-                </div>
+                </Link>
               )}
 
               {isOwner && (

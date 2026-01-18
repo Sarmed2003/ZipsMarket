@@ -10,6 +10,9 @@ import Purchases from './pages/Purchases'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
 import Messages from './pages/Messages'
+import Likes from './pages/Likes'
+import Following from './pages/Following'
+import Checkout from './pages/Checkout'
 import './App.css'
 
 function AppRoutes() {
@@ -86,6 +89,30 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Messages />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/likes"
+        element={
+          <ProtectedRoute>
+            <Likes />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/following"
+        element={
+          <ProtectedRoute>
+            <Following />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/checkout/:id"
+        element={
+          <ProtectedRoute>
+            <Checkout />
           </ProtectedRoute>
         }
       />
