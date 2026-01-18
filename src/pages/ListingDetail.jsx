@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, UserPlus, UserCheck } from 'lucide-react'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -11,10 +11,17 @@ export default function ListingDetail() {
   const [listing, setListing] = useState(null)
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [isFollowing, setIsFollowing] = useState(false)
 
   useEffect(() => {
     fetchListing()
   }, [id])
+
+  useEffect(() => {
+    if (listing && user) {
+      checkFollowingStatus()
+    }
+  }, [listing, user])
 
   const fetchListing = async () => {
     try {
@@ -56,6 +63,56 @@ export default function ListingDetail() {
       setListing(null)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const checkFollowingStatus = async () => {
+    if (!listing || !user || listing.user_id === user.id) return
+    
+    try {
+      const { data, error } = await supabase
+        .from('follows')
+        .select('id')
+        .eq('follower_id', user.id)
+        .eq('following_id', listing.user_id)
+        .single()
+
+      if (error && error.code !== 'PGRST116') throw error
+      setIsFollowing(!!data)
+    } catch (error) {
+      console.error('Error checking follow status:', error)
+    }
+  }
+
+  const handleFollow = async () => {
+    if (!listing || !user || listing.user_id === user.id) return
+
+    try {
+      if (isFollowing) {
+        // Unfollow
+        const { error } = await supabase
+          .from('follows')
+          .delete()
+          .eq('follower_id', user.id)
+          .eq('following_id', listing.user_id)
+
+        if (error) throw error
+        setIsFollowing(false)
+      } else {
+        // Follow
+        const { error } = await supabase
+          .from('follows')
+          .insert({
+            follower_id: user.id,
+            following_id: listing.user_id,
+          })
+
+        if (error) throw error
+        setIsFollowing(true)
+      }
+    } catch (error) {
+      console.error('Error toggling follow:', error)
+      alert('Failed to follow/unfollow user')
     }
   }
 
@@ -142,12 +199,52 @@ export default function ListingDetail() {
                 <p className="text-gray-700 whitespace-pre-wrap">{listing.description}</p>
               </div>
 
-              {listing.profiles && (
+              {listing.profiles && !isOwner && (
+                <div className="mb-6 p-4 bg-gray-50 rounded-lg flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    {listing.profiles.profile_picture ? (
+                      <img
+                        src={listing.profiles.profile_picture}
+                        alt={listing.profiles.email}
+                        className="w-12 h-12 rounded-full object-cover border-2 border-[#A89968]"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#041E42] to-[#A89968] flex items-center justify-center text-white font-semibold border-2 border-[#A89968]">
+                        {listing.profiles.email?.charAt(0).toUpperCase() || 'S'}
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-sm text-gray-600">Seller</p>
+                      <p className="font-semibold text-gray-900">
+                        {listing.profiles.email?.split('@')[0] || 'Unknown'}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleFollow}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+                      isFollowing
+                        ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        : 'bg-gradient-to-r from-[#041E42] to-[#031832] text-white hover:from-[#031832] hover:to-[#041E42]'
+                    }`}
+                  >
+                    {isFollowing ? (
+                      <>
+                        <UserCheck className="w-5 h-5" />
+                        <span>Following</span>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-5 h-5" />
+                        <span>Follow</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
+              {listing.profiles && isOwner && (
                 <div className="mb-6">
-                  <p className="text-sm text-gray-600 mb-1">Seller</p>
-                  <p className="font-semibold">
-                    {listing.profiles.email?.split('@')[0] || 'Unknown'}
-                  </p>
+                  <p className="text-sm text-gray-600 mb-1">Your Listing</p>
                 </div>
               )}
 
