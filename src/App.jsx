@@ -9,6 +9,7 @@ import CreateListing from './pages/CreateListing'
 import Purchases from './pages/Purchases'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
+import Messages from './pages/Messages'
 import './App.css'
 
 function AppRoutes() {
@@ -77,6 +78,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Chat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Messages />
           </ProtectedRoute>
         }
       />

@@ -19,10 +19,15 @@ export default function Chat() {
   const inputRef = useRef(null)
 
   useEffect(() => {
-    fetchListing()
-    fetchMessages()
-    setupRealtime()
-  }, [listingId])
+    if (listingId) {
+      fetchListing()
+      fetchMessages()
+      const unsubscribe = setupRealtime()
+      return () => {
+        if (unsubscribe) unsubscribe()
+      }
+    }
+  }, [listingId, user])
 
   useEffect(() => {
     scrollToBottom()
@@ -131,21 +136,26 @@ export default function Chat() {
   }
 
   const setupRealtime = () => {
+    if (!listingId) return
+    
     const channel = supabase
       .channel(`messages:${listingId}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen for all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'messages',
           filter: `listing_id=eq.${listingId}`,
         },
         (payload) => {
+          console.log('Message update received:', payload)
           fetchMessages()
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        console.log('Realtime subscription status:', status)
+      })
 
     return () => {
       supabase.removeChannel(channel)
@@ -196,6 +206,8 @@ export default function Chat() {
       }
       
       setNewMessage('')
+      // Refresh messages to show the new one
+      await fetchMessages()
       inputRef.current?.focus()
     } catch (error) {
       console.error('Error sending message:', error)
