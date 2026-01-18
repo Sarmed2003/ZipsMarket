@@ -105,22 +105,38 @@ export default function Profile() {
   const handleSaveProfile = async () => {
     try {
       setUploading(true)
+      
+      // Use UPDATE instead of UPSERT to respect RLS policy
       const { error } = await supabase
         .from('profiles')
-        .upsert({
-          id: user.id,
-          email: user.email,
+        .update({
           profile_picture: profilePicture || null,
           bio: bio || null,
           updated_at: new Date().toISOString(),
-        }, {
-          onConflict: 'id'
         })
+        .eq('id', user.id)
 
       if (error) {
         console.error('Profile save error:', error)
-        alert('Error saving profile: ' + error.message)
-        throw error
+        // If profile doesn't exist, create it first
+        if (error.code === 'PGRST116' || error.message.includes('No rows')) {
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .insert({
+              id: user.id,
+              email: user.email,
+              profile_picture: profilePicture || null,
+              bio: bio || null,
+            })
+          
+          if (insertError) {
+            alert('Error saving profile: ' + insertError.message)
+            throw insertError
+          }
+        } else {
+          alert('Error saving profile: ' + error.message)
+          throw error
+        }
       }
       
       setEditing(false)

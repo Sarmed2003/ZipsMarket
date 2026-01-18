@@ -19,27 +19,31 @@ export default function Home() {
   const fetchListings = async () => {
     try {
       // Fetch all listings - should be publicly visible regardless of user
-      const { data, error } = await supabase
+      // First get listings
+      const { data: listingsData, error: listingsError } = await supabase
         .from('listings')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            email,
-            profile_picture,
-            bio
-          )
-        `)
+        .select('*')
         .eq('sold', false) // Only show unsold listings
         .order('created_at', { ascending: false })
 
-      if (error) {
-        console.error('Error fetching listings:', error)
-        throw error
-      }
-      
-      console.log('Fetched listings:', data?.length || 0, 'listings')
-      setListings(data || [])
+      if (listingsError) throw listingsError
+
+      // Then get profiles for all unique user_ids
+      const userIds = [...new Set(listingsData?.map(l => l.user_id) || [])]
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, email, profile_picture, bio')
+        .in('id', userIds)
+
+      if (profilesError) throw profilesError
+
+      // Combine listings with profiles
+      const listingsWithProfiles = listingsData?.map(listing => ({
+        ...listing,
+        profiles: profilesData?.find(p => p.id === listing.user_id) || null
+      })) || []
+
+      setListings(listingsWithProfiles)
     } catch (error) {
       console.error('Error fetching listings:', error)
       // Show error to user
