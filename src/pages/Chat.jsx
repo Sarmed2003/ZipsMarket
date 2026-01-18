@@ -89,14 +89,40 @@ export default function Chat() {
 
   const fetchMessages = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch messages
+      const { data: messagesData, error: messagesError } = await supabase
         .from('messages')
-        .select('*, profiles:sender_id(*)')
+        .select('*')
         .eq('listing_id', listingId)
         .order('created_at', { ascending: true })
 
-      if (error) throw error
-      setMessages(data || [])
+      if (messagesError) throw messagesError
+
+      // Fetch profiles for all senders
+      const senderIds = [...new Set(messagesData?.map(m => m.sender_id) || [])]
+      let profilesMap = {}
+      
+      if (senderIds.length > 0) {
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, email, profile_picture')
+          .in('id', senderIds)
+
+        if (!profilesError && profilesData) {
+          profilesMap = profilesData.reduce((acc, profile) => {
+            acc[profile.id] = profile
+            return acc
+          }, {})
+        }
+      }
+
+      // Combine messages with profiles
+      const messagesWithProfiles = messagesData?.map(message => ({
+        ...message,
+        profiles: profilesMap[message.sender_id] || null
+      })) || []
+
+      setMessages(messagesWithProfiles)
       setLoading(false)
     } catch (error) {
       console.error('Error fetching messages:', error)
