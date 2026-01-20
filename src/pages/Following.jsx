@@ -16,8 +16,6 @@ export default function Following() {
     }
   }, [user])
 
-  const [followingUsers, setFollowingUsers] = useState([])
-
   const fetchFollowing = async () => {
     try {
       const { data, error } = await supabase
