@@ -136,7 +136,10 @@ export default function Home() {
           .eq('user_id', user.id)
           .eq('listing_id', listingId)
 
-        if (error) throw error
+        if (error) {
+          console.error('Unlike error:', error)
+          throw error
+        }
         setLikedListings(prev => {
           const newSet = new Set(prev)
           newSet.delete(listingId)
@@ -151,12 +154,21 @@ export default function Home() {
             listing_id: listingId,
           })
 
-        if (error) throw error
+        if (error) {
+          console.error('Like error:', error)
+          // Check if it's a duplicate key error (already liked)
+          if (error.code === '23505') {
+            // Already liked, just update state
+            setLikedListings(prev => new Set(prev).add(listingId))
+            return
+          }
+          throw error
+        }
         setLikedListings(prev => new Set(prev).add(listingId))
       }
     } catch (error) {
       console.error('Error toggling like:', error)
-      alert('Failed to like/unlike item')
+      alert('Failed to like/unlike item: ' + (error.message || 'Please make sure the likes table exists in your database'))
     }
   }
 

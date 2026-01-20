@@ -251,25 +251,21 @@ export default function Chat() {
             <ArrowLeft className="w-6 h-6" />
           </button>
           <div className="flex-1 flex items-center gap-3">
-            {otherUser?.profile_picture ? (
-              <img
-                src={otherUser.profile_picture}
-                alt={otherUser.email}
-                className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-              />
-            ) : (
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#041E42] to-[#A89968] flex items-center justify-center text-white font-semibold border-2 border-gray-200">
-                {otherUser?.email?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-            <div>
+            <div className="flex items-center gap-3 flex-1">
               <h1 className="font-semibold text-lg">
                 {listing?.title || 'Chat'}
               </h1>
-              <p className="text-sm text-gray-600">
-                {otherUser?.email?.split('@')[0] || (listing?.user_id === user.id ? 'Buyer' : 'Seller')}
-              </p>
+              {listing?.images?.[0] && (
+                <img
+                  src={listing.images[0]}
+                  alt={listing.title}
+                  className="w-10 h-10 rounded-lg object-cover border border-gray-200"
+                />
+              )}
             </div>
+            <p className="text-sm text-gray-600">
+              {otherUser?.email?.split('@')[0] || (listing?.user_id === user.id ? 'Buyer' : 'Seller')}
+            </p>
           </div>
           {buyNow && (
             <Link
@@ -292,26 +288,12 @@ export default function Chat() {
           ) : (
             messages.map((message) => {
               const isOwn = message.sender_id === user.id
-              const senderProfile = message.profiles
               
               return (
                 <div
                   key={message.id}
-                  className={`flex items-end gap-2 ${isOwn ? 'justify-end' : 'justify-start'}`}
+                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                 >
-                  {!isOwn && (
-                    senderProfile?.profile_picture ? (
-                      <img
-                        src={senderProfile.profile_picture}
-                        alt={senderProfile.email}
-                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#041E42] to-[#A89968] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        {senderProfile?.email?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                    )
-                  )}
                   <div
                     className={`max-w-xs lg:max-w-md px-4 py-2 rounded-2xl ${
                       isOwn
@@ -328,21 +310,6 @@ export default function Chat() {
                       {formatTime(message.created_at)}
                     </p>
                   </div>
-                  {isOwn && (() => {
-                    // Get profile picture from profiles table, not auth.user
-                    const userProfile = message.profiles
-                    return userProfile?.profile_picture ? (
-                      <img
-                        src={userProfile.profile_picture}
-                        alt={user.email}
-                        className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#041E42] to-[#A89968] flex items-center justify-center text-white text-xs font-semibold flex-shrink-0">
-                        {user.email?.charAt(0).toUpperCase() || 'U'}
-                      </div>
-                    )
-                  })()}
                 </div>
               )
             })
