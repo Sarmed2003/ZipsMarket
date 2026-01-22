@@ -335,14 +335,6 @@ export default function Profile() {
               </p>
             </div>
 
-            <div className="bg-green-50 rounded-lg p-6">
-              <div className="flex items-center gap-3 mb-2">
-                <DollarSign className="w-6 h-6 text-green-900" />
-                <h3 className="text-lg font-semibold text-gray-900">Total Earnings</h3>
-              </div>
-              <p className="text-3xl font-bold text-green-900">${totalEarnings.toFixed(2)}</p>
-            </div>
-
             <div className="bg-gradient-to-br from-[#A89968]/10 to-[#041E42]/10 rounded-xl p-6 border border-[#A89968]/20 shadow-md">
               <div className="flex items-center gap-3 mb-2">
                 <Star className="w-6 h-6 text-[#A89968]" />
