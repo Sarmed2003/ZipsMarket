@@ -9,10 +9,13 @@ export default function Home() {
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState(null)
   const [likedListings, setLikedListings] = useState(new Set())
   const [unreadCount, setUnreadCount] = useState(0)
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
+
+  const categories = ['Menswear', 'Womenswear', 'sneakers', 'College Items', 'accessories']
 
   useEffect(() => {
     if (user) {
@@ -172,10 +175,12 @@ export default function Home() {
     }
   }
 
-  const filteredListings = listings.filter((listing) =>
-    listing.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    listing.description?.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  const filteredListings = listings.filter((listing) => {
+    const matchesSearch = listing.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      listing.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    const matchesCategory = !selectedCategory || listing.category === selectedCategory
+    return matchesSearch && matchesCategory
+  })
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -203,6 +208,33 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Category Filter Buttons */}
+            <div className="hidden lg:flex items-center gap-2">
+              <button
+                onClick={() => setSelectedCategory(null)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                  selectedCategory === null
+                    ? 'bg-[#041E42] text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                All
+              </button>
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  onClick={() => setSelectedCategory(category)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedCategory === category
+                      ? 'bg-[#041E42] text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+
             {/* User Actions */}
             <div className="flex items-center gap-4">
               <Link
@@ -226,26 +258,12 @@ export default function Home() {
                 )}
               </Link>
               <Link
-                to="/following"
-                className="flex items-center gap-2 text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10"
-                title="Following"
-              >
-                <Users className="w-5 h-5" />
-                <span className="hidden sm:inline">Following</span>
-              </Link>
-              <Link
                 to="/likes"
                 className="flex items-center gap-2 text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10"
                 title="Likes"
               >
                 <Heart className="w-5 h-5" />
                 <span className="hidden sm:inline">Likes</span>
-              </Link>
-              <Link
-                to="/purchases"
-                className="hidden sm:block text-gray-700 hover:text-[#041E42] font-medium transition-colors px-3 py-2 rounded-lg hover:bg-[#A89968]/10"
-              >
-                Purchases
               </Link>
               <Link
                 to="/profile"

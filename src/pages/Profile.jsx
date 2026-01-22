@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Package, Star, DollarSign, Edit2, Upload, X } from 'lucide-react'
+import { Package, Star, DollarSign, Edit2, Upload, X, Users } from 'lucide-react'
 
 export default function Profile() {
   const { user } = useAuth()
@@ -14,7 +14,10 @@ export default function Profile() {
   const [editing, setEditing] = useState(false)
   const [profilePicture, setProfilePicture] = useState('')
   const [bio, setBio] = useState('')
+  const [username, setUsername] = useState('')
   const [uploading, setUploading] = useState(false)
+  const [followersCount, setFollowersCount] = useState(0)
+  const [followingCount, setFollowingCount] = useState(0)
 
   useEffect(() => {
     fetchData()
@@ -34,6 +37,27 @@ export default function Profile() {
       if (profileData) {
         setProfilePicture(profileData.profile_picture || '')
         setBio(profileData.bio || '')
+        setUsername(profileData.username || '')
+      }
+
+      // Fetch followers count
+      const { count: followersCount, error: followersError } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('following_id', user.id)
+
+      if (!followersError) {
+        setFollowersCount(followersCount || 0)
+      }
+
+      // Fetch following count
+      const { count: followingCount, error: followingError } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('follower_id', user.id)
+
+      if (!followingError) {
+        setFollowingCount(followingCount || 0)
       }
 
       // Fetch user's listings
@@ -106,12 +130,30 @@ export default function Profile() {
     try {
       setUploading(true)
       
+      // Validate username if provided
+      if (username) {
+        // Check if username is already taken by another user
+        const { data: existingUser, error: checkError } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('username', username.trim().toLowerCase())
+          .neq('id', user.id)
+          .single()
+
+        if (existingUser) {
+          alert('This username is already taken. Please choose another.')
+          setUploading(false)
+          return
+        }
+      }
+
       // Use UPDATE instead of UPSERT to respect RLS policy
       const { error } = await supabase
         .from('profiles')
         .update({
           profile_picture: profilePicture || null,
           bio: bio || null,
+          username: username ? username.trim().toLowerCase() : null,
           updated_at: new Date().toISOString(),
         })
         .eq('id', user.id)
@@ -127,6 +169,7 @@ export default function Profile() {
               email: user.email,
               profile_picture: profilePicture || null,
               bio: bio || null,
+              username: username ? username.trim().toLowerCase() : null,
             })
           
           if (insertError) {
@@ -157,13 +200,27 @@ export default function Profile() {
     )
   }
 
-  const totalEarnings = sales
-    .filter((sale) => sale.funds_released)
-    .reduce((sum, sale) => sum + parseFloat(sale.amount), 0)
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Navigation Buttons */}
+        <div className="flex gap-4 mb-6">
+          <Link
+            to="/following"
+            className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+          >
+            <Users className="w-5 h-5 text-[#041E42]" />
+            <span>Following</span>
+          </Link>
+          <Link
+            to="/purchases"
+            className="flex items-center gap-2 bg-white px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+          >
+            <Package className="w-5 h-5 text-[#041E42]" />
+            <span>Purchases</span>
+          </Link>
+        </div>
+
         <div className="bg-white rounded-lg shadow-lg p-8 mb-8">
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">
@@ -193,7 +250,26 @@ export default function Profile() {
                 )}
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">My Profile</h1>
+                <div className="flex items-center gap-4 mb-2">
+                  {editing ? (
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="Enter username"
+                      className="text-3xl font-bold text-gray-900 border-b-2 border-[#041E42] focus:outline-none focus:border-[#A89968] bg-transparent"
+                      maxLength={30}
+                    />
+                  ) : (
+                    <h1 className="text-3xl font-bold text-gray-900">
+                      {profile?.username || user.email?.split('@')[0] || 'My Profile'}
+                    </h1>
+                  )}
+                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                    <span><strong className="text-gray-900">{followersCount}</strong> Followers</span>
+                    <span><strong className="text-gray-900">{followingCount}</strong> Following</span>
+                  </div>
+                </div>
                 <p className="text-gray-600">{user.email}</p>
                 {bio && !editing && (
                   <p className="text-gray-700 mt-3 max-w-2xl">{bio}</p>
@@ -215,6 +291,7 @@ export default function Profile() {
                     setEditing(false)
                     setProfilePicture(profile?.profile_picture || '')
                     setBio(profile?.bio || '')
+                    setUsername(profile?.username || '')
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft, UserPlus, UserCheck } from 'lucide-react'
+import { ArrowLeft, UserPlus, UserCheck, Heart } from 'lucide-react'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -12,6 +12,7 @@ export default function ListingDetail() {
   const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isFollowing, setIsFollowing] = useState(false)
+  const [likesCount, setLikesCount] = useState(0)
 
   useEffect(() => {
     fetchListing()
@@ -20,8 +21,25 @@ export default function ListingDetail() {
   useEffect(() => {
     if (listing && user) {
       checkFollowingStatus()
+      fetchLikesCount()
     }
   }, [listing, user])
+
+  const fetchLikesCount = async () => {
+    if (!listing) return
+    
+    try {
+      const { count, error } = await supabase
+        .from('likes')
+        .select('*', { count: 'exact', head: true })
+        .eq('listing_id', listing.id)
+
+      if (error) throw error
+      setLikesCount(count || 0)
+    } catch (error) {
+      console.error('Error fetching likes count:', error)
+    }
+  }
 
   const fetchListing = async () => {
     try {
@@ -190,9 +208,14 @@ export default function ListingDetail() {
             {/* Product Info */}
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-4">{listing.title}</h1>
-              <p className="text-4xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent mb-6">
+              <p className="text-4xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent mb-4">
                 ${parseFloat(listing.price).toFixed(2)}
               </p>
+              <div className="flex items-center gap-2 mb-6 text-gray-600">
+                <Heart className="w-5 h-5 fill-red-500 text-red-500" />
+                <span className="font-semibold">{likesCount}</span>
+                <span className="text-sm">likes</span>
+              </div>
 
               <div className="border-t border-b py-6 my-6">
                 <h2 className="text-xl font-semibold mb-4">Product Description</h2>
