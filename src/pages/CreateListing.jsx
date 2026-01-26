@@ -11,12 +11,23 @@ export default function CreateListing() {
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
   const [category, setCategory] = useState('')
+  const [brand, setBrand] = useState('')
+  const [size, setSize] = useState('')
+  const [condition, setCondition] = useState('')
   const [images, setImages] = useState([])
   const [imageFiles, setImageFiles] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   const categories = ['Menswear', 'Womenswear', 'sneakers', 'College Items', 'accessories']
+  const conditions = ['New', 'Like New', 'Good', 'Fair', 'Poor']
+  const sizes = {
+    'Menswear': ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    'Womenswear': ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL'],
+    'sneakers': ['6', '6.5', '7', '7.5', '8', '8.5', '9', '9.5', '10', '10.5', '11', '11.5', '12', '13', '14'],
+    'College Items': ['One Size', 'Small', 'Medium', 'Large'],
+    'accessories': ['One Size', 'Small', 'Medium', 'Large']
+  }
 
   const handleImageSelect = (e) => {
     const files = Array.from(e.target.files)
@@ -95,6 +106,9 @@ export default function CreateListing() {
           description,
           price: parseFloat(price),
           category,
+          brand: brand || null,
+          size: size || null,
+          condition: condition || null,
           images: imageUrls,
           user_id: user.id,
         })
@@ -154,24 +168,84 @@ export default function CreateListing() {
             />
           </div>
 
-          <div>
-            <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
-              Category *
-            </label>
-            <select
-              id="category"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              required
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="">Select a category</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-2">
+                Category *
+              </label>
+              <select
+                id="category"
+                value={category}
+                onChange={(e) => {
+                  setCategory(e.target.value)
+                  setSize('') // Reset size when category changes
+                }}
+                required
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select a category</option>
+                {categories.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="brand" className="block text-sm font-medium text-gray-700 mb-2">
+                Brand
+              </label>
+              <input
+                id="brand"
+                type="text"
+                value={brand}
+                onChange={(e) => setBrand(e.target.value)}
+                placeholder="e.g., Nike, Adidas, Zara"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="size" className="block text-sm font-medium text-gray-700 mb-2">
+                Size
+              </label>
+              <select
+                id="size"
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                disabled={!category}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+              >
+                <option value="">Select size</option>
+                {category && sizes[category]?.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="condition" className="block text-sm font-medium text-gray-700 mb-2">
+                Condition
+              </label>
+              <select
+                id="condition"
+                value={condition}
+                onChange={(e) => setCondition(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select condition</option>
+                {conditions.map((cond) => (
+                  <option key={cond} value={cond}>
+                    {cond}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div>

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Heart } from 'lucide-react'
+import ListingCard from '../components/ListingCard'
 
 export default function Likes() {
   const { user } = useAuth()
@@ -98,42 +99,14 @@ export default function Likes() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {likedListings.map((listing) => (
-              <Link
+              <ListingCard
                 key={listing.id}
-                to={`/listing/${listing.id}`}
-                className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200"
-              >
-                <div className="aspect-square bg-gray-200 relative overflow-hidden">
-                  {listing.images && listing.images.length > 0 ? (
-                    <img
-                      src={listing.images[0]}
-                      alt={listing.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      No Image
-                    </div>
-                  )}
-                  <div className="absolute top-3 right-3">
-                    <Heart className="w-6 h-6 text-red-500 fill-red-500" />
-                  </div>
-                </div>
-                <div className="p-4">
-                  <h3 className="font-semibold text-lg text-gray-900 mb-1 truncate">
-                    {listing.title}
-                  </h3>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent mb-2">
-                    ${parseFloat(listing.price).toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-600 line-clamp-2">{listing.description}</p>
-                  {listing.profiles && (
-                    <p className="text-xs text-gray-500 mt-2">
-                      {listing.profiles.email?.split('@')[0] || 'Seller'}
-                    </p>
-                  )}
-                </div>
-              </Link>
+                listing={listing}
+                isLiked={true}
+                onLike={() => {}} // Liked items page, no toggle needed
+                isOwner={user?.id === listing.user_id}
+                user={user}
+              />
             ))}
           </div>
         )}

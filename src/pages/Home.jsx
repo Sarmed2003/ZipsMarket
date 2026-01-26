@@ -1,65 +1,193 @@
-import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { Search, Plus, User, LogOut, MessageCircle, ShoppingCart, Inbox, Heart, Users } from 'lucide-react'
+import { Search, Plus, User, LogOut, Inbox, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import ListingCard from '../components/ListingCard'
+import ListingSkeleton from '../components/ListingSkeleton'
+import FilterSidebar from '../components/FilterSidebar'
+import FilterChips from '../components/FilterChips'
 
 export default function Home() {
+  const [searchParams, setSearchParams] = useSearchParams()
   const [listings, setListings] = useState([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const [likedListings, setLikedListings] = useState(new Set())
   const [unreadCount, setUnreadCount] = useState(0)
+  const [filterSidebarOpen, setFilterSidebarOpen] = useState(false)
+  const [sortBy, setSortBy] = useState(searchParams.get('sort') || 'newest')
+  const observerTarget = useRef(null)
   const { user, signOut } = useAuth()
   const navigate = useNavigate()
 
   const categories = ['Menswear', 'Womenswear', 'sneakers', 'College Items', 'accessories']
+  const sortOptions = [
+    { value: 'newest', label: 'Newest' },
+    { value: 'price_asc', label: 'Price: Low to High' },
+    { value: 'price_desc', label: 'Price: High to Low' },
+    { value: 'relevance', label: 'Relevance' }
+  ]
+
+  // Initialize filters from URL
+  const [filters, setFilters] = useState({
+    search: searchParams.get('q') || '',
+    categories: searchParams.get('categories')?.split(',') || [],
+    priceMin: searchParams.get('priceMin') ? parseFloat(searchParams.get('priceMin')) : null,
+    priceMax: searchParams.get('priceMax') ? parseFloat(searchParams.get('priceMax')) : null,
+    conditions: searchParams.get('conditions')?.split(',') || [],
+  })
+
+  // Update URL when filters change
+  useEffect(() => {
+    const params = new URLSearchParams()
+    if (filters.search) params.set('q', filters.search)
+    if (filters.categories.length > 0) params.set('categories', filters.categories.join(','))
+    if (filters.priceMin) params.set('priceMin', filters.priceMin.toString())
+    if (filters.priceMax) params.set('priceMax', filters.priceMax.toString())
+    if (filters.conditions.length > 0) params.set('conditions', filters.conditions.join(','))
+    if (sortBy !== 'newest') params.set('sort', sortBy)
+    
+    setSearchParams(params, { replace: true })
+  }, [filters, sortBy, setSearchParams])
+
+  // Debounced search
+  const [searchQuery, setSearchQuery] = useState(filters.search)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters(prev => ({ ...prev, search: searchQuery }))
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   useEffect(() => {
     if (user) {
-      fetchListings()
+      fetchListings(true)
       fetchLikedListings()
       fetchUnreadCount()
       setupRealtime()
     }
-  }, [user])
+  }, [user, filters, sortBy])
 
-  const fetchListings = async () => {
+  // Infinite scroll observer
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          fetchListings(false)
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current)
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current)
+      }
+    }
+  }, [hasMore, loadingMore, loading])
+
+  const fetchListings = async (reset = true) => {
     try {
-      // Fetch all listings - should be publicly visible regardless of user
-      // First get listings
-      const { data: listingsData, error: listingsError } = await supabase
+      if (reset) {
+        setLoading(true)
+        setListings([])
+      } else {
+        setLoadingMore(true)
+      }
+
+      let query = supabase
         .from('listings')
-        .select('*')
-        .eq('sold', false) // Only show unsold listings
-        .order('created_at', { ascending: false })
+        .select('*', { count: 'exact' })
+        .eq('sold', false)
+
+      // Apply filters
+      if (filters.categories.length > 0) {
+        query = query.in('category', filters.categories)
+      }
+
+      if (filters.priceMin) {
+        query = query.gte('price', filters.priceMin)
+      }
+
+      if (filters.priceMax) {
+        query = query.lte('price', filters.priceMax)
+      }
+
+      if (filters.conditions.length > 0) {
+        query = query.in('condition', filters.conditions)
+      }
+
+      // Search filter
+      if (filters.search) {
+        query = query.or(`title.ilike.%${filters.search}%,description.ilike.%${filters.search}%`)
+      }
+
+      // Sort
+      switch (sortBy) {
+        case 'price_asc':
+          query = query.order('price', { ascending: true })
+          break
+        case 'price_desc':
+          query = query.order('price', { ascending: false })
+          break
+        case 'newest':
+        default:
+          query = query.order('created_at', { ascending: false })
+          break
+      }
+
+      // Pagination
+      const pageSize = 20
+      const offset = reset ? 0 : listings.length
+      query = query.range(offset, offset + pageSize - 1)
+
+      const { data: listingsData, error: listingsError, count } = await query
 
       if (listingsError) throw listingsError
 
-      // Then get profiles for all unique user_ids
+      // Fetch profiles
       const userIds = [...new Set(listingsData?.map(l => l.user_id) || [])]
-      const { data: profilesData, error: profilesError } = await supabase
-        .from('profiles')
-        .select('id, email, profile_picture, bio')
-        .in('id', userIds)
+      let profilesMap = {}
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('profiles')
+          .select('id, email, profile_picture, bio, username')
+          .in('id', userIds)
 
-      if (profilesError) throw profilesError
+        if (profilesData) {
+          profilesMap = profilesData.reduce((acc, profile) => {
+            acc[profile.id] = profile
+            return acc
+          }, {})
+        }
+      }
 
       // Combine listings with profiles
       const listingsWithProfiles = listingsData?.map(listing => ({
         ...listing,
-        profiles: profilesData?.find(p => p.id === listing.user_id) || null
+        profiles: profilesMap[listing.user_id] || null
       })) || []
 
-      setListings(listingsWithProfiles)
+      if (reset) {
+        setListings(listingsWithProfiles)
+      } else {
+        setListings(prev => [...prev, ...listingsWithProfiles])
+      }
+
+      setHasMore(listingsWithProfiles.length === pageSize)
     } catch (error) {
       console.error('Error fetching listings:', error)
-      // Show error to user
       alert('Error loading listings: ' + error.message)
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
   }
 
@@ -130,26 +258,27 @@ export default function Home() {
 
     const isLiked = likedListings.has(listingId)
 
+    // Optimistic update
+    setLikedListings(prev => {
+      const newSet = new Set(prev)
+      if (isLiked) {
+        newSet.delete(listingId)
+      } else {
+        newSet.add(listingId)
+      }
+      return newSet
+    })
+
     try {
       if (isLiked) {
-        // Unlike
         const { error } = await supabase
           .from('likes')
           .delete()
           .eq('user_id', user.id)
           .eq('listing_id', listingId)
 
-        if (error) {
-          console.error('Unlike error:', error)
-          throw error
-        }
-        setLikedListings(prev => {
-          const newSet = new Set(prev)
-          newSet.delete(listingId)
-          return newSet
-        })
+        if (error) throw error
       } else {
-        // Like
         const { error } = await supabase
           .from('likes')
           .insert({
@@ -157,30 +286,56 @@ export default function Home() {
             listing_id: listingId,
           })
 
-        if (error) {
-          console.error('Like error:', error)
-          // Check if it's a duplicate key error (already liked)
-          if (error.code === '23505') {
-            // Already liked, just update state
-            setLikedListings(prev => new Set(prev).add(listingId))
-            return
-          }
-          throw error
-        }
-        setLikedListings(prev => new Set(prev).add(listingId))
+        if (error && error.code !== '23505') throw error
       }
     } catch (error) {
+      // Revert optimistic update on error
+      setLikedListings(prev => {
+        const newSet = new Set(prev)
+        if (isLiked) {
+          newSet.add(listingId)
+        } else {
+          newSet.delete(listingId)
+        }
+        return newSet
+      })
       console.error('Error toggling like:', error)
-      alert('Failed to like/unlike item: ' + (error.message || 'Please make sure the likes table exists in your database'))
     }
   }
 
-  const filteredListings = listings.filter((listing) => {
-    const matchesSearch = listing.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      listing.description?.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesCategory = !selectedCategory || listing.category === selectedCategory
-    return matchesSearch && matchesCategory
-  })
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters)
+    setListings([])
+    setHasMore(true)
+  }
+
+  const handleRemoveFilter = (type, value) => {
+    const newFilters = { ...filters }
+    if (type === 'category') {
+      newFilters.categories = newFilters.categories.filter(c => c !== value)
+    } else if (type === 'condition') {
+      newFilters.conditions = newFilters.conditions.filter(c => c !== value)
+    } else if (type === 'priceMin') {
+      newFilters.priceMin = null
+    } else if (type === 'priceMax') {
+      newFilters.priceMax = null
+    }
+    handleFilterChange(newFilters)
+  }
+
+  const handleClearAll = () => {
+    const clearedFilters = {
+      search: '',
+      categories: [],
+      priceMin: null,
+      priceMax: null,
+      conditions: [],
+    }
+    setSearchQuery('')
+    handleFilterChange(clearedFilters)
+  }
+
+  const activeCategory = filters.categories.length === 1 ? filters.categories[0] : null
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -203,7 +358,7 @@ export default function Home() {
                   placeholder="Search items..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#041E42] focus:border-transparent"
                 />
               </div>
             </div>
@@ -211,9 +366,11 @@ export default function Home() {
             {/* Category Filter Buttons */}
             <div className="hidden lg:flex items-center gap-2">
               <button
-                onClick={() => setSelectedCategory(null)}
+                onClick={() => {
+                  handleFilterChange({ ...filters, categories: [] })
+                }}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  selectedCategory === null
+                  filters.categories.length === 0
                     ? 'bg-[#041E42] text-white'
                     : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                 }`}
@@ -223,9 +380,11 @@ export default function Home() {
               {categories.map((category) => (
                 <button
                   key={category}
-                  onClick={() => setSelectedCategory(category)}
+                  onClick={() => {
+                    handleFilterChange({ ...filters, categories: [category] })
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    selectedCategory === category
+                    activeCategory === category
                       ? 'bg-[#041E42] text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
@@ -237,6 +396,13 @@ export default function Home() {
 
             {/* User Actions */}
             <div className="flex items-center gap-4">
+              <button
+                onClick={() => setFilterSidebarOpen(!filterSidebarOpen)}
+                className="lg:hidden p-2 text-gray-700 hover:text-[#041E42] transition-colors rounded-lg hover:bg-[#A89968]/10"
+                title="Filters"
+              >
+                <SlidersHorizontal className="w-6 h-6" />
+              </button>
               <Link
                 to="/create-listing"
                 className="flex items-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] text-white px-4 py-2 rounded-xl hover:from-[#031832] hover:to-[#041E42] transition-all duration-300 shadow-md hover:shadow-lg transform hover:scale-105"
@@ -286,104 +452,104 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="text-gray-500">Loading listings...</div>
-          </div>
-        ) : filteredListings.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg mb-4">
-              {searchQuery ? 'No items found matching your search.' : 'No listings yet.'}
-            </p>
-            <Link
-              to="/create-listing"
-              className="inline-flex items-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] text-white px-6 py-3 rounded-xl hover:from-[#031832] hover:to-[#041E42] transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
-            >
-              <Plus className="w-5 h-5" />
-              Create First Listing
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredListings.map((listing) => {
-              const isOwner = user?.id === listing.user_id
-              const isLiked = likedListings.has(listing.id)
-              return (
-                <div
-                  key={listing.id}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-200 flex flex-col relative"
-                >
-                  {/* Like button */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handleLike(listing.id)
-                    }}
-                    className="absolute top-3 right-3 z-10 bg-white/90 hover:bg-white rounded-full p-2 shadow-md transition-colors"
-                    title={isLiked ? 'Remove from likes' : 'Add to likes'}
-                  >
-                    <Heart
-                      className={`w-5 h-5 ${
-                        isLiked
-                          ? 'fill-red-500 text-red-500'
-                          : 'text-gray-600 hover:text-red-500'
-                      } transition-colors`}
-                    />
-                  </button>
+        <div className="flex gap-6">
+          {/* Filter Sidebar */}
+          <FilterSidebar
+            isOpen={filterSidebarOpen}
+            onClose={() => setFilterSidebarOpen(false)}
+            filters={filters}
+            onFilterChange={handleFilterChange}
+            categories={categories}
+            onClearAll={handleClearAll}
+          />
 
-                  <Link to={`/listing/${listing.id}`} className="flex-1">
-                    <div className="aspect-square bg-gray-200 relative overflow-hidden">
-                      {listing.images && listing.images.length > 0 ? (
-                        <img
-                          src={listing.images[0]}
-                          alt={listing.title}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                          No Image
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-4">
-                      <h3 className="font-semibold text-lg text-gray-900 mb-1 truncate">
-                        {listing.title}
-                      </h3>
-                      <p className="text-2xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent mb-2">
-                        ${parseFloat(listing.price).toFixed(2)}
-                      </p>
-                      <p className="text-sm text-gray-600 line-clamp-2">{listing.description}</p>
-                      {listing.profiles && (
-                        <p className="text-xs text-gray-500 mt-2">
-                          {listing.profiles.email?.split('@')[0] || 'Seller'}
-                        </p>
-                      )}
-                    </div>
-                  </Link>
-                  {!isOwner && (
-                    <div className="p-4 pt-0 flex gap-2">
-                      <button
-                        onClick={() => navigate(`/chat/${listing.id}`)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors"
-                      >
-                        <MessageCircle className="w-4 h-4" />
-                        Message Seller
-                      </button>
-                      <button
-                        onClick={() => navigate(`/chat/${listing.id}?buy=true`)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg"
-                      >
-                        <ShoppingCart className="w-4 h-4" />
-                        Buy Now
-                      </button>
-                    </div>
-                  )}
+          {/* Content Area */}
+          <div className="flex-1">
+            {/* Sort and Results Count */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-gray-600">
+                  {loading ? 'Loading...' : `${listings.length} ${listings.length === 1 ? 'item' : 'items'}`}
+                </p>
+                <FilterChips
+                  filters={filters}
+                  onRemoveFilter={handleRemoveFilter}
+                  onClearAll={handleClearAll}
+                />
+              </div>
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => {
+                    setSortBy(e.target.value)
+                    setListings([])
+                    setHasMore(true)
+                  }}
+                  className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 text-sm focus:ring-2 focus:ring-[#041E42] focus:border-transparent"
+                >
+                  {sortOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Listings Grid */}
+            {loading && listings.length === 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <ListingSkeleton key={i} />
+                ))}
+              </div>
+            ) : listings.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg mb-4">
+                  {filters.search || filters.categories.length > 0 || filters.priceMin || filters.priceMax || filters.conditions.length > 0
+                    ? 'No items found matching your filters.'
+                    : 'No listings yet.'}
+                </p>
+                <Link
+                  to="/create-listing"
+                  className="inline-flex items-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] text-white px-6 py-3 rounded-xl hover:from-[#031832] hover:to-[#041E42] transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                >
+                  <Plus className="w-5 h-5" />
+                  Create First Listing
+                </Link>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                  {listings.map((listing) => (
+                    <ListingCard
+                      key={listing.id}
+                      listing={listing}
+                      isLiked={likedListings.has(listing.id)}
+                      onLike={handleLike}
+                      isOwner={user?.id === listing.user_id}
+                      user={user}
+                    />
+                  ))}
                 </div>
-              )
-            })}
+                
+                {/* Infinite scroll sentinel */}
+                {hasMore && (
+                  <div ref={observerTarget} className="mt-8">
+                    {loadingMore && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        {[...Array(4)].map((_, i) => (
+                          <ListingSkeleton key={i} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        )}
+        </div>
       </main>
     </div>
   )

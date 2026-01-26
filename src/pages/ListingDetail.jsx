@@ -171,15 +171,36 @@ export default function ListingDetail() {
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="grid md:grid-cols-2 gap-8 p-8">
-            {/* Image Gallery */}
+            {/* Image Gallery - Grailed Style */}
             <div>
-              <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden mb-4">
+              <div className="aspect-square bg-gray-200 rounded-lg overflow-hidden mb-4 relative group">
                 {images.length > 0 ? (
-                  <img
-                    src={images[currentImageIndex]}
-                    alt={listing.title}
-                    className="w-full h-full object-cover"
-                  />
+                  <>
+                    <img
+                      src={images[currentImageIndex]}
+                      alt={listing.title}
+                      className="w-full h-full object-cover"
+                    />
+                    {images.length > 1 && (
+                      <>
+                        <button
+                          onClick={() => setCurrentImageIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1))}
+                          className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          ←
+                        </button>
+                        <button
+                          onClick={() => setCurrentImageIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0))}
+                          className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          →
+                        </button>
+                        <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-black/50 text-white px-3 py-1 rounded-full text-xs">
+                          {currentImageIndex + 1} / {images.length}
+                        </div>
+                      </>
+                    )}
+                  </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                     No Image
@@ -187,15 +208,15 @@ export default function ListingDetail() {
                 )}
               </div>
               {images.length > 1 && (
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {images.map((img, index) => (
                     <button
                       key={index}
                       onClick={() => setCurrentImageIndex(index)}
-                      className={`aspect-square rounded-lg overflow-hidden border-2 ${
+                      className={`aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                         currentImageIndex === index
-                          ? 'border-blue-900'
-                          : 'border-transparent'
+                          ? 'border-[#041E42] ring-2 ring-[#A89968]'
+                          : 'border-transparent hover:border-gray-300'
                       }`}
                     >
                       <img src={img} alt={`${listing.title} ${index + 1}`} className="w-full h-full object-cover" />
@@ -215,6 +236,34 @@ export default function ListingDetail() {
                 <Heart className="w-5 h-5 fill-red-500 text-red-500" />
                 <span className="font-semibold">{likesCount}</span>
                 <span className="text-sm">likes</span>
+              </div>
+
+              {/* Product Details */}
+              <div className="space-y-4 mb-6">
+                {listing.brand && (
+                  <div>
+                    <span className="text-sm text-gray-600">Brand:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{listing.brand}</span>
+                  </div>
+                )}
+                {listing.size && (
+                  <div>
+                    <span className="text-sm text-gray-600">Size:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{listing.size}</span>
+                  </div>
+                )}
+                {listing.condition && (
+                  <div>
+                    <span className="text-sm text-gray-600">Condition:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{listing.condition}</span>
+                  </div>
+                )}
+                {listing.category && (
+                  <div>
+                    <span className="text-sm text-gray-600">Category:</span>
+                    <span className="ml-2 font-semibold text-gray-900">{listing.category}</span>
+                  </div>
+                )}
               </div>
 
               <div className="border-t border-b py-6 my-6">
