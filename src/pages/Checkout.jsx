@@ -57,8 +57,31 @@ export default function Checkout() {
           body: JSON.stringify({ listingId: listing.id, buyerId: user.id }),
         })
 
-        const json = await res.json()
-        if (!res.ok) throw new Error(json?.error || 'Failed to create payment intent')
+        // In local dev, /api/* may not exist (Vite won't serve Vercel Functions).
+        // Parse defensively so we can show the real error.
+        const raw = await res.text()
+        let json = null
+        try {
+          json = raw ? JSON.parse(raw) : null
+        } catch {
+          // non-JSON response (often 404 HTML)
+        }
+
+        if (!res.ok) {
+          const hint =
+            res.status === 404
+              ? 'Tip: /api routes run on Vercel. For local Stripe testing, run `npx vercel dev` (or deploy to Vercel).'
+              : null
+          const message =
+            json?.error ||
+            (raw ? raw.slice(0, 160) : '') ||
+            `Request failed with status ${res.status}`
+          throw new Error(hint ? `${message}\n\n${hint}` : message)
+        }
+
+        if (!json?.clientSecret) {
+          throw new Error('Payment intent response missing clientSecret.')
+        }
 
         setClientSecret(json.clientSecret)
 
@@ -71,7 +94,7 @@ export default function Checkout() {
             seller_id: listing.user_id,
             amount: listing.price,
             status: 'pending_payment',
-            stripe_payment_intent_id: json.paymentIntentId || null,
+            stripe_payment_intent_id: json?.paymentIntentId || null,
           })
           .select('id')
           .single()
