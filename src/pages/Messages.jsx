@@ -168,7 +168,7 @@ export default function Messages() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent">
+              <h1 className="text-2xl font-extrabold zips-wordmark animate-zips">
                 ZipsMarket
               </h1>
             </Link>
@@ -224,13 +224,6 @@ export default function Messages() {
                     <h3 className="font-semibold text-lg text-gray-900 truncate">
                       {conversation.listing?.title || 'Listing'}
                     </h3>
-                    {conversation.listing?.images?.[0] && (
-                      <img
-                        src={conversation.listing.images[0]}
-                        alt={conversation.listing.title}
-                        className="w-8 h-8 object-cover rounded-md flex-shrink-0"
-                      />
-                    )}
                     <span className="text-sm text-gray-500 ml-auto flex-shrink-0">
                       {formatTime(conversation.last_message.created_at)}
                     </span>

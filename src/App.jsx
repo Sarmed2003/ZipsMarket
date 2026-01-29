@@ -6,6 +6,7 @@ import Signup from './pages/Signup'
 import Home from './pages/Home'
 import ListingDetail from './pages/ListingDetail'
 import CreateListing from './pages/CreateListing'
+import EditListing from './pages/EditListing'
 import Purchases from './pages/Purchases'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
@@ -57,6 +58,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <CreateListing />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/listing/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditListing />
           </ProtectedRoute>
         }
       />

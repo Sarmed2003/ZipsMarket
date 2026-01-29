@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft, Package } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { Elements } from '@stripe/react-stripe-js'
+import stripePromise from '../lib/stripe'
+import CheckoutForm from '../components/CheckoutForm'
 
 export default function Checkout() {
   const { id: listingId } = useParams()
@@ -10,6 +13,9 @@ export default function Checkout() {
   const { user } = useAuth()
   const [listing, setListing] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [clientSecret, setClientSecret] = useState(null)
+  const [transactionId, setTransactionId] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     fetchListing()
@@ -31,6 +37,55 @@ export default function Checkout() {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    const createIntent = async () => {
+      setError('')
+      setClientSecret(null)
+      setTransactionId(null)
+
+      if (!listing || !user) return
+      if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+        setError('Stripe is not configured yet. Add VITE_STRIPE_PUBLISHABLE_KEY to your environment variables.')
+        return
+      }
+
+      try {
+        const res = await fetch('/api/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ listingId: listing.id, buyerId: user.id }),
+        })
+
+        const json = await res.json()
+        if (!res.ok) throw new Error(json?.error || 'Failed to create payment intent')
+
+        setClientSecret(json.clientSecret)
+
+        // Create a transaction record tied to this PaymentIntent (client-side via RLS)
+        const { data: transaction, error: transactionError } = await supabase
+          .from('transactions')
+          .insert({
+            listing_id: listing.id,
+            buyer_id: user.id,
+            seller_id: listing.user_id,
+            amount: listing.price,
+            status: 'pending_payment',
+            stripe_payment_intent_id: json.paymentIntentId || null,
+          })
+          .select('id')
+          .single()
+
+        if (transactionError) throw transactionError
+        setTransactionId(transaction?.id || null)
+      } catch (e) {
+        console.error('Error creating payment intent:', e)
+        setError(e.message || 'Failed to start checkout')
+      }
+    }
+
+    createIntent()
+  }, [listing, user])
 
   if (loading) {
     return (
@@ -87,33 +142,25 @@ export default function Checkout() {
             </div>
           </div>
 
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
-            <div className="flex items-start gap-3">
-              <Package className="w-6 h-6 text-yellow-600 mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-yellow-900 mb-2">Payment Integration Coming Soon</h3>
-                <p className="text-yellow-800 text-sm">
-                  Stripe payment integration is being implemented. You will be able to complete your purchase soon.
-                  Funds will be held in escrow until you rate the seller after receiving the item.
-                </p>
-              </div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-red-700">
+              {error}
             </div>
-          </div>
+          )}
 
-          <div className="flex gap-4">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex-1 px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              disabled
-              className="flex-1 px-6 py-3 bg-gray-400 text-white rounded-lg cursor-not-allowed"
-            >
-              Complete Purchase (Coming Soon)
-            </button>
-          </div>
+          {clientSecret ? (
+            <Elements stripe={stripePromise} options={{ clientSecret }}>
+              <CheckoutForm
+                listing={listing}
+                transactionId={transactionId}
+                onSuccess={() => navigate('/purchases')}
+              />
+            </Elements>
+          ) : (
+            <div className="text-sm text-gray-600">
+              {error ? 'Fix the issue above to continue.' : 'Preparing secure checkout...'}
+            </div>
+          )}
         </div>
       </div>
     </div>

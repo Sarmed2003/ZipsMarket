@@ -45,6 +45,51 @@ body {
   }
 }
 
+.zips-wordmark {
+  position: relative;
+  display: inline-block;
+  color: transparent;
+  background-image: linear-gradient(90deg, #041E42, #A89968, #041E42);
+  background-size: 200% 200%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  letter-spacing: -0.02em;
+}
+
+@keyframes zipsShimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes zipsHaloSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.zips-wordmark::after {
+  content: '';
+  position: absolute;
+  inset: -10px -14px;
+  border-radius: 9999px;
+  background: conic-gradient(from 180deg, rgba(4, 30, 66, 0.0), rgba(168, 153, 104, 0.35), rgba(4, 30, 66, 0.0));
+  filter: blur(10px);
+  opacity: 0.9;
+  z-index: -1;
+  animation: zipsHaloSpin 18s linear infinite;
+}
+
+.animate-zips {
+  animation: zipsShimmer 8s ease-in-out infinite;
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-in;
 }

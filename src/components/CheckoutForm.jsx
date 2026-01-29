@@ -7,7 +7,7 @@ import {
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
-export default function CheckoutForm({ listing, onSuccess }) {
+export default function CheckoutForm({ listing, transactionId, onSuccess }) {
   const stripe = useStripe()
   const elements = useElements()
   const { user } = useAuth()
@@ -32,47 +32,9 @@ export default function CheckoutForm({ listing, onSuccess }) {
         return
       }
 
-      // Create a transaction record first
-      const { data: transaction, error: transactionError } = await supabase
-        .from('transactions')
-        .insert({
-          listing_id: listing.id,
-          buyer_id: user.id,
-          seller_id: listing.user_id,
-          amount: listing.price,
-          status: 'pending_payment',
-        })
-        .select()
-        .single()
-
-      if (transactionError) throw transactionError
-
-      // Create payment intent via your backend API
-      // NOTE: You need to create a backend endpoint at /api/create-payment-intent
-      // See api-example/create-payment-intent.js for reference
-      const response = await fetch('/api/create-payment-intent', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: listing.price,
-          listingId: listing.id,
-          buyerId: user.id,
-          sellerId: listing.user_id,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to create payment intent')
-      }
-
-      const { clientSecret } = await response.json()
-
-      // Confirm payment with the client secret
+      // Confirm payment for the PaymentIntent used to render PaymentElement
       const { error: paymentError } = await stripe.confirmPayment({
         elements,
-        clientSecret,
         confirmParams: {
           return_url: `${window.location.origin}/purchases`,
         },
@@ -86,10 +48,12 @@ export default function CheckoutForm({ listing, onSuccess }) {
       }
 
       // Update transaction status
-      await supabase
-        .from('transactions')
-        .update({ status: 'paid' })
-        .eq('id', transaction.id)
+      if (transactionId) {
+        await supabase
+          .from('transactions')
+          .update({ status: 'paid' })
+          .eq('id', transactionId)
+      }
 
       // Mark listing as sold
       await supabase

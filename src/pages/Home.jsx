@@ -344,7 +344,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center group">
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent group-hover:scale-105 transition-transform duration-200">
+              <h1 className="text-2xl font-extrabold zips-wordmark animate-zips group-hover:opacity-90 transition-opacity duration-200">
                 ZipsMarket
               </h1>
             </Link>
@@ -361,37 +361,6 @@ export default function Home() {
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#041E42] focus:border-transparent"
                 />
               </div>
-            </div>
-
-            {/* Category Filter Buttons */}
-            <div className="hidden lg:flex items-center gap-2">
-              <button
-                onClick={() => {
-                  handleFilterChange({ ...filters, categories: [] })
-                }}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  filters.categories.length === 0
-                    ? 'bg-[#041E42] text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                All
-              </button>
-              {categories.map((category) => (
-                <button
-                  key={category}
-                  onClick={() => {
-                    handleFilterChange({ ...filters, categories: [category] })
-                  }}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    activeCategory === category
-                      ? 'bg-[#041E42] text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
             </div>
 
             {/* User Actions */}
@@ -465,6 +434,39 @@ export default function Home() {
 
           {/* Content Area */}
           <div className="flex-1">
+            {/* Category buttons (moved under header, Grailed-style) */}
+            <div className="mb-4">
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                <button
+                  onClick={() => {
+                    handleFilterChange({ ...filters, categories: [] })
+                  }}
+                  className={`h-9 w-full rounded-lg text-sm font-semibold transition-colors border ${
+                    filters.categories.length === 0
+                      ? 'bg-[#041E42] text-white border-[#041E42]'
+                      : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  All
+                </button>
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => {
+                      handleFilterChange({ ...filters, categories: [category] })
+                    }}
+                    className={`h-9 w-full rounded-lg text-sm font-semibold transition-colors border ${
+                      activeCategory === category
+                        ? 'bg-[#041E42] text-white border-[#041E42]'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {/* Sort and Results Count */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { Users, Heart } from 'lucide-react'
+import { Users } from 'lucide-react'
+import BackButton from '../components/BackButton'
 
 export default function Following() {
   const { user } = useAuth()
@@ -58,6 +59,7 @@ export default function Following() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <BackButton />
         <div className="flex items-center gap-3 mb-8">
           <Users className="w-8 h-8 text-[#041E42]" />
           <h1 className="text-3xl font-bold text-gray-900">Following</h1>

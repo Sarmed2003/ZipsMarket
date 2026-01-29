@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Star, Package } from 'lucide-react'
 import RatingModal from '../components/RatingModal'
+import BackButton from '../components/BackButton'
 
 export default function Purchases() {
   const { user } = useAuth()
@@ -48,6 +49,7 @@ export default function Purchases() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <BackButton />
         <h1 className="text-3xl font-bold text-gray-900 mb-8">My Purchases</h1>
 
         {purchases.length === 0 ? (

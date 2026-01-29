@@ -63,7 +63,7 @@ CREATE POLICY "Users can view all profiles"
 
 CREATE POLICY "Users can update own profile"
   ON public.profiles FOR UPDATE
-  USING (auth.uid() = id);
+  USING ((select auth.uid()) = id);
 
 -- Listings policies
 CREATE POLICY "Anyone can view listings"
@@ -72,28 +72,28 @@ CREATE POLICY "Anyone can view listings"
 
 CREATE POLICY "Users can create listings"
   ON public.listings FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+  WITH CHECK ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can update own listings"
   ON public.listings FOR UPDATE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 CREATE POLICY "Users can delete own listings"
   ON public.listings FOR DELETE
-  USING (auth.uid() = user_id);
+  USING ((select auth.uid()) = user_id);
 
 -- Transactions policies
 CREATE POLICY "Users can view own transactions"
   ON public.transactions FOR SELECT
-  USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+  USING ((select auth.uid()) = buyer_id OR (select auth.uid()) = seller_id);
 
 CREATE POLICY "Users can create transactions"
   ON public.transactions FOR INSERT
-  WITH CHECK (auth.uid() = buyer_id);
+  WITH CHECK ((select auth.uid()) = buyer_id);
 
 CREATE POLICY "Users can update own transactions"
   ON public.transactions FOR UPDATE
-  USING (auth.uid() = buyer_id OR auth.uid() = seller_id);
+  USING ((select auth.uid()) = buyer_id OR (select auth.uid()) = seller_id);
 
 -- Seller ratings policies
 CREATE POLICY "Anyone can view seller ratings"
@@ -108,7 +108,7 @@ BEGIN
   VALUES (NEW.id, NEW.email);
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger to create profile on user signup
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
@@ -125,7 +125,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public;
 
 -- Trigger to enforce email domain
 DROP TRIGGER IF EXISTS check_user_domain_trigger ON auth.users;
@@ -146,12 +146,12 @@ CREATE POLICY "Anyone can view listing images"
 
 CREATE POLICY "Authenticated users can upload listing images"
   ON storage.objects FOR INSERT
-  WITH CHECK (bucket_id = 'listing-images' AND auth.role() = 'authenticated');
+  WITH CHECK (bucket_id = 'listing-images' AND (select auth.role()) = 'authenticated');
 
 CREATE POLICY "Users can update own listing images"
   ON storage.objects FOR UPDATE
-  USING (bucket_id = 'listing-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+  USING (bucket_id = 'listing-images' AND (select auth.uid())::text = (storage.foldername(name))[1]);
 
 CREATE POLICY "Users can delete own listing images"
   ON storage.objects FOR DELETE
-  USING (bucket_id = 'listing-images' AND auth.uid()::text = (storage.foldername(name))[1]);
+  USING (bucket_id = 'listing-images' AND (select auth.uid())::text = (storage.foldername(name))[1]);

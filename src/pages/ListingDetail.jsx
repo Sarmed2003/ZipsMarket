@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft, UserPlus, UserCheck, Heart } from 'lucide-react'
+import { ArrowLeft, UserPlus, UserCheck, Heart, Edit2 } from 'lucide-react'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -331,7 +331,16 @@ export default function ListingDetail() {
 
               {isOwner && (
                 <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <p className="text-blue-900">This is your listing</p>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-blue-900 font-medium">This is your listing</p>
+                    <button
+                      onClick={() => navigate(`/listing/${listing.id}/edit`)}
+                      className="inline-flex items-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] text-white px-4 py-2 rounded-lg hover:from-[#031832] hover:to-[#041E42] transition-all"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                      Edit Listing
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

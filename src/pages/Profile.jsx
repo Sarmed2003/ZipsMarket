@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Package, Star, DollarSign, Edit2, Upload, X, Users } from 'lucide-react'
+import BackButton from '../components/BackButton'
 
 export default function Profile() {
   const { user } = useAuth()
@@ -203,6 +204,7 @@ export default function Profile() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <BackButton />
         {/* Navigation Buttons */}
         <div className="flex gap-4 mb-6">
           <Link
@@ -381,28 +383,39 @@ export default function Profile() {
                 </div>
               ) : (
                 listings.map((listing) => (
-                  <Link
+                  <div
                     key={listing.id}
-                    to={`/listing/${listing.id}`}
                     className="bg-white rounded-lg shadow-md p-4 flex items-center gap-4 hover:shadow-lg transition-shadow"
                   >
-                    {listing.images?.[0] && (
-                      <img
-                        src={listing.images[0]}
-                        alt={listing.title}
-                        className="w-20 h-20 object-cover rounded-lg"
-                      />
-                    )}
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{listing.title}</h3>
-                      <p className="bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent font-bold">${parseFloat(listing.price).toFixed(2)}</p>
-                      {listing.sold && (
-                        <span className="inline-block mt-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
-                          Sold
-                        </span>
+                    <Link to={`/listing/${listing.id}`} className="flex items-center gap-4 flex-1 min-w-0">
+                      {listing.images?.[0] && (
+                        <img
+                          src={listing.images[0]}
+                          alt={listing.title}
+                          className="w-20 h-20 object-cover rounded-lg"
+                        />
                       )}
-                    </div>
-                  </Link>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-lg truncate">{listing.title}</h3>
+                        <p className="bg-gradient-to-r from-[#041E42] to-[#A89968] bg-clip-text text-transparent font-bold">
+                          ${parseFloat(listing.price).toFixed(2)}
+                        </p>
+                        {listing.sold && (
+                          <span className="inline-block mt-2 px-2 py-1 bg-red-100 text-red-800 text-xs rounded">
+                            Sold
+                          </span>
+                        )}
+                      </div>
+                    </Link>
+                    {!listing.sold && (
+                      <Link
+                        to={`/listing/${listing.id}/edit`}
+                        className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-medium"
+                      >
+                        Edit
+                      </Link>
+                    )}
+                  </div>
                 ))
               )}
             </div>
