@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const AuthContext = createContext({})
 
@@ -16,6 +16,11 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!isSupabaseConfigured || !supabase) {
+      setUser(null)
+      setLoading(false)
+      return
+    }
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -34,6 +39,9 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const signUp = async (email, password) => {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local.')
+    }
     // Validate email domain (allow test email for development)
     // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
     const testEmail = 'sarmedmahmood91903@gmail.com'
@@ -59,6 +67,9 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signIn = async (email, password) => {
+    if (!isSupabaseConfigured || !supabase) {
+      throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local.')
+    }
     // Validate email domain (allow test email for development)
     const testEmail = 'sarmedmahmood91903@gmail.com'
     if (!email.endsWith('@uakron.edu') && email !== testEmail) {
@@ -75,6 +86,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const signOut = async () => {
+    if (!isSupabaseConfigured || !supabase) return
     const { error } = await supabase.auth.signOut()
     if (error) throw error
   }
