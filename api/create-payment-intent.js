@@ -19,11 +19,18 @@ export default async function handler(req, res) {
 
     const supabaseUrl = process.env.SUPABASE_URL
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-    if (!supabaseUrl || !serviceRoleKey) {
-      return json(res, 500, { error: 'Server misconfigured (missing Supabase env vars)' })
+    const anonKey = process.env.SUPABASE_ANON_KEY
+    const supabaseKey = serviceRoleKey || anonKey
+
+    // We only need to READ the listing (publicly readable via RLS), so anon is OK for dev.
+    if (!supabaseUrl || !supabaseKey) {
+      return json(res, 500, {
+        error:
+          'Server misconfigured (missing SUPABASE_URL and either SUPABASE_SERVICE_ROLE_KEY or SUPABASE_ANON_KEY)',
+      })
     }
 
-    const admin = createClient(supabaseUrl, serviceRoleKey, {
+    const admin = createClient(supabaseUrl, supabaseKey, {
       auth: { persistSession: false, autoRefreshToken: false },
     })
 
