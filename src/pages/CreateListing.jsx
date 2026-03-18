@@ -91,6 +91,12 @@ export default function CreateListing() {
         return
       }
 
+      if (parseFloat(price) < 0.50) {
+        setError('Price must be at least $0.50 (Stripe minimum)')
+        setLoading(false)
+        return
+      }
+
       if (images.length === 0) {
         setError('Please add at least one image')
         setLoading(false)
@@ -159,12 +165,12 @@ export default function CreateListing() {
               id="price"
               type="number"
               step="0.01"
-              min="0"
+              min="0.50"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               required
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="0.00"
+              placeholder="0.50"
             />
           </div>
 

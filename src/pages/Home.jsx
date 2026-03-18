@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { Search, Plus, User, LogOut, Inbox, Heart, SlidersHorizontal, ChevronDown } from 'lucide-react'
@@ -148,7 +148,7 @@ export default function Home() {
       const offset = reset ? 0 : listings.length
       query = query.range(offset, offset + pageSize - 1)
 
-      const { data: listingsData, error: listingsError, count } = await query
+      const { data: listingsData, error: listingsError } = await query
 
       if (listingsError) throw listingsError
 

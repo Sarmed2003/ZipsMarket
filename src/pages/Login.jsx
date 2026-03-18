@@ -3,10 +3,13 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Mail, Lock, AlertCircle, Eye, EyeOff } from 'lucide-react'
 
+// DEV ONLY: Test email for development (remove before production)
+const DEV_TEST_EMAIL = 'sarmedmahmood91903@gmail.com'
+
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { signIn } = useAuth()
@@ -18,10 +21,8 @@ export default function Login() {
     setLoading(true)
 
     try {
-      // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
-      const testEmail = 'sarmedmahmood91903@gmail.com'
       const normalizedEmail = email.trim().toLowerCase()
-      if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== testEmail) {
+      if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
         setError('Please use your @uakron.edu email address')
         setLoading(false)
         return

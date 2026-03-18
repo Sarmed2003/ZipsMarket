@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Heart } from 'lucide-react'
 import ListingCard from '../components/ListingCard'
+import BackButton from '../components/BackButton'
 
 export default function Likes() {
   const { user } = useAuth()
@@ -77,6 +78,7 @@ export default function Likes() {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <BackButton />
         <div className="flex items-center gap-3 mb-8">
           <Heart className="w-8 h-8 text-red-500 fill-red-500" />
           <h1 className="text-3xl font-bold text-gray-900">My Likes</h1>

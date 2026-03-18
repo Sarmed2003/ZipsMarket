@@ -4,12 +4,15 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 import { Package, Star, DollarSign, Edit2, Upload, X, Users } from 'lucide-react'
 import BackButton from '../components/BackButton'
+import BuyerRatingModal from '../components/BuyerRatingModal'
+import StripeConnectBanner from '../components/StripeConnectBanner'
 
 export default function Profile() {
   const { user } = useAuth()
   const [listings, setListings] = useState([])
   const [sales, setSales] = useState([])
   const [rating, setRating] = useState(null)
+  const [selectedSaleForRating, setSelectedSaleForRating] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(false)
@@ -21,8 +24,8 @@ export default function Profile() {
   const [followingCount, setFollowingCount] = useState(0)
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    if (user?.id) fetchData()
+  }, [user?.id])
 
   const fetchData = async () => {
     try {
@@ -71,10 +74,11 @@ export default function Profile() {
       if (listingsError) throw listingsError
       setListings(listingsData || [])
 
-      // Fetch sales
+      // buyer:buyer_id(*) requires transactions.buyer_id FK to point to profiles(id).
+      // Run supabase-migrations/fix-transaction-fk-for-profiles-join.sql if it errors.
       const { data: salesData, error: salesError } = await supabase
         .from('transactions')
-        .select('*, listings(*)')
+        .select('*, listings(*), buyer:buyer_id(*)')
         .eq('seller_id', user.id)
         .order('created_at', { ascending: false })
 
@@ -134,7 +138,7 @@ export default function Profile() {
       // Validate username if provided
       if (username) {
         // Check if username is already taken by another user
-        const { data: existingUser, error: checkError } = await supabase
+        const { data: existingUser } = await supabase
           .from('profiles')
           .select('id')
           .eq('username', username.trim().toLowerCase())
@@ -326,6 +330,15 @@ export default function Profile() {
             </div>
           )}
 
+          {/* Stripe Connect: Seller payout setup */}
+          <div className="mb-6">
+            <StripeConnectBanner
+              userId={user.id}
+              stripeAccountId={profile?.stripe_account_id}
+              onboardingComplete={profile?.stripe_onboarding_complete}
+            />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-gradient-to-br from-[#041E42]/10 to-[#A89968]/10 rounded-xl p-6 border border-[#A89968]/20 shadow-md">
               <div className="flex items-center gap-3 mb-2">
@@ -344,11 +357,26 @@ export default function Profile() {
               </div>
               {rating ? (
                 <div>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-[#A89968] to-[#041E42] bg-clip-text text-transparent">
-                    {rating.average_rating.toFixed(1)}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    ({rating.total_ratings} {rating.total_ratings === 1 ? 'rating' : 'ratings'})
+                  <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-bold bg-gradient-to-r from-[#A89968] to-[#041E42] bg-clip-text text-transparent">
+                      {rating.average_rating.toFixed(1)}
+                    </p>
+                    <div className="flex gap-0.5">
+                      {[1,2,3,4,5].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-4 h-4 ${s <= Math.round(rating.average_rating) ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {rating.total_ratings} {rating.total_ratings === 1 ? 'review' : 'reviews'}
+                    {rating.five_star_count > 0 && (
+                      <span className="ml-2 text-yellow-600 font-medium">
+                        · {rating.five_star_count} ★ five-star
+                      </span>
+                    )}
                   </p>
                 </div>
               ) : (
@@ -448,15 +476,41 @@ export default function Profile() {
                       <p className="text-sm text-gray-600">
                         {new Date(sale.created_at).toLocaleDateString()}
                       </p>
-                      <span
-                        className={`inline-block mt-2 px-2 py-1 text-xs rounded ${
-                          sale.funds_released
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}
-                      >
-                        {sale.funds_released ? 'Funds Released' : 'Pending Rating'}
-                      </span>
+                      <div className="flex flex-wrap items-center gap-2 mt-2">
+                        <span
+                          className={`inline-block px-2 py-1 text-xs rounded ${
+                            sale.funds_released
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}
+                        >
+                          {sale.funds_released ? 'Funds Released' : 'Pending Rating'}
+                        </span>
+                        {(sale.status === 'paid' || sale.status === 'completed') && sale.buyer_rating_by_seller == null && (
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSaleForRating(sale)}
+                            className="flex items-center gap-1.5 bg-gradient-to-r from-[#041E42] to-[#031832] text-white text-sm px-3 py-1.5 rounded-lg hover:from-[#031832] hover:to-[#041E42] transition-all"
+                          >
+                            <Star className="w-4 h-4" />
+                            Rate buyer
+                          </button>
+                        )}
+                        {sale.buyer_rating_by_seller != null && (
+                          <div className="flex items-center gap-1">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-4 h-4 ${
+                                  i < sale.buyer_rating_by_seller
+                                    ? 'fill-yellow-400 text-yellow-400'
+                                    : 'text-gray-300'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))
@@ -465,6 +519,17 @@ export default function Profile() {
           </div>
         </div>
       </div>
+
+      {selectedSaleForRating && (
+        <BuyerRatingModal
+          sale={selectedSaleForRating}
+          onClose={() => setSelectedSaleForRating(null)}
+          onComplete={() => {
+            setSelectedSaleForRating(null)
+            fetchData()
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -1,184 +1,217 @@
 # ZipsMarket
 
-A digital marketplace exclusively for University of Akron students, built with React, Supabase, and Stripe.
+A digital marketplace exclusively for University of Akron students. Buy and sell items securely with fellow Zips!
 
 ## Features
 
-- 🔐 **Email-based Authentication**: Only @uakron.edu email addresses can sign up
-- 🛍️ **Item Listings**: Students can create listings with multiple images and descriptions
-- 💳 **Secure Payments**: Stripe integration for handling transactions
-- ⭐ **Rating System**: Buyers can rate sellers after purchase
-- 💰 **Escrow System**: Funds are held until buyer rates the seller
-- 📧 **Email Notifications**: Automatic email notifications for purchases
-- 🎨 **University Branding**: Styled with University of Akron colors
+- 🔐 **Exclusive Access**: Only @uakron.edu email addresses allowed
+- 🛍️ **Item Listings**: Create listings with multiple images, descriptions, categories, and pricing
+- 💳 **Secure Payments**: Stripe integration with escrow (funds held until buyer rates)
+- ⭐ **Rating System**: Rate sellers after purchase to build trust
+- 💬 **Messaging**: Direct communication between buyers and sellers
+- ❤️ **Likes & Following**: Save favorite items and follow other sellers
+- 🎨 **University Branding**: Designed with UA colors (Navy #041E42, Gold #A89968)
 
 ## Tech Stack
 
-- **Frontend**: React + Vite
+- **Frontend**: React 19 + Vite
 - **Styling**: Tailwind CSS
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Payments**: Stripe
+- **Database & Auth**: Supabase (PostgreSQL + Auth)
+- **Payments**: Stripe (manual capture for escrow)
+- **File Storage**: Supabase Storage
 - **Hosting**: Vercel
 
-## Prerequisites
+## Quick Start
+
+### 1. Prerequisites
 
 - Node.js 18+ and npm
-- A Supabase account
-- A Stripe account
-- A Vercel account (for deployment)
+- Supabase account ([supabase.com](https://supabase.com))
+- Stripe account ([stripe.com](https://stripe.com))
 
-## Setup Instructions
-
-### 1. Clone and Install Dependencies
+### 2. Clone and Install
 
 ```bash
+git clone https://github.com/Sarmed2003/ZipsMarket.git
+cd ZipsMarket
 npm install
 ```
 
-### 2. Set Up Supabase
+### 3. Database Setup
 
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to SQL Editor and run the SQL from `supabase-schema.sql`
-3. Go to Storage and create a bucket named `listing-images` (or it will be created by the SQL script)
-4. Go to Settings > API and copy your:
-   - Project URL
-   - `anon` public key
+1. Create a new Supabase project at [supabase.com](https://supabase.com/dashboard)
+2. Go to **SQL Editor** and run the entire contents of `supabase-complete-schema.sql`
+3. Wait for "Success. No rows returned" (this creates all tables, policies, indexes, triggers)
 
-### 3. Set Up Stripe
+### 4. Get Your API Keys
 
-1. Create a Stripe account at [stripe.com](https://stripe.com)
-2. Get your Publishable Key from the Dashboard
-3. Set up a webhook endpoint for payment confirmations (you'll need to create a backend API route for this)
+#### Supabase Keys
 
-### 4. Configure Environment Variables
+1. In your Supabase project, go to **Settings** → **API**
+2. Copy these two values:
+   - **Project URL** (e.g., `https://xxxxx.supabase.co`)
+   - **anon / public** key (very long JWT starting with `eyJ...`, ~150+ characters)
 
-Create a `.env` file in the root directory:
+#### Stripe Keys (Test Mode)
+
+1. Go to [Stripe Dashboard](https://dashboard.stripe.com/test/apikeys)
+2. Make sure you're in **Test mode** (toggle in top-right)
+3. Copy:
+   - **Publishable key** (starts with `pk_test_...`)
+   - **Secret key** (starts with `sk_test_...`)
+
+### 5. Configure Environment Variables
+
+Create a `.env.local` file in the project root:
 
 ```env
-VITE_SUPABASE_URL=your_supabase_project_url
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
-VITE_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+## Frontend (Vite)
+VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGc...YOUR_LONG_ANON_KEY_HERE
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_YOUR_PUBLISHABLE_KEY
+
+## API (Vercel Functions)
+SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+SUPABASE_ANON_KEY=eyJhbGc...YOUR_LONG_ANON_KEY_HERE
+STRIPE_SECRET_KEY=sk_test_YOUR_SECRET_KEY
+
+## Optional (leave blank for now)
+SUPABASE_SERVICE_ROLE_KEY=
 ```
 
-### 5. Run Development Server
+**Important:**
+- `VITE_SUPABASE_ANON_KEY` and `SUPABASE_ANON_KEY` should be **identical** (the anon public key)
+- Never commit `.env.local` to git (already in `.gitignore`)
+- The anon key is safe to use in frontend and API (it respects RLS)
+
+### 6. Run Development Server
 
 ```bash
-npm run dev
+npm run dev:api
 ```
 
-The app will be available at `http://localhost:5173`
+This starts the app and API on **http://localhost:3000**
+
+Test with Stripe test cards:
+- Success: `4242 4242 4242 4242`
+- Decline: `4000 0000 0000 0002`
+- Any future expiry date and any 3-digit CVC
+
+---
 
 ## Project Structure
 
 ```
-src/
-├── components/          # Reusable components
-│   ├── CheckoutForm.jsx
-│   ├── ProtectedRoute.jsx
-│   └── RatingModal.jsx
-├── contexts/           # React contexts
-│   └── AuthContext.jsx
-├── lib/               # Utility libraries
-│   ├── supabase.js
-│   └── stripe.js
-├── pages/             # Page components
-│   ├── CreateListing.jsx
-│   ├── Home.jsx
-│   ├── ListingDetail.jsx
-│   ├── Login.jsx
-│   ├── Profile.jsx
-│   ├── Purchases.jsx
-│   └── Signup.jsx
-├── App.jsx            # Main app component with routing
-└── main.jsx           # Entry point
+ZipsMarket/
+├── api/
+│   └── create-payment-intent.js  # Vercel serverless function for Stripe
+├── src/
+│   ├── components/               # Reusable UI components
+│   ├── contexts/                 # React contexts (Auth)
+│   ├── lib/                      # Supabase & Stripe clients
+│   ├── pages/                    # Main app pages
+│   ├── App.jsx                   # Router setup
+│   └── main.jsx                  # Entry point
+├── supabase-complete-schema.sql  # Complete database schema
+├── .env.local                    # Local env vars (gitignored)
+├── package.json
+└── vercel.json
 ```
 
-## Database Schema
+---
 
-### Tables
+## Database Schema Overview
 
-- **profiles**: User profile information
-- **listings**: Product listings created by users
-- **transactions**: Purchase transactions
-- **seller_ratings**: Aggregated seller ratings
+| Table | Description |
+|-------|-------------|
+| **profiles** | User profiles (auto-created on signup) |
+| **listings** | Items for sale with images, price, category |
+| **transactions** | Purchase records with Stripe PaymentIntent ID |
+| **seller_ratings** | Aggregated seller ratings (average + count) |
+| **follows** | User following relationships |
+| **likes** | Saved/liked listings |
+| **messages** | Buyer-seller direct messages |
 
-See `supabase-schema.sql` for complete schema and policies.
+All tables have Row Level Security (RLS) enabled.
 
-## Payment Flow
+---
 
-1. Buyer clicks "Purchase Item" on a listing
-2. Stripe payment form is displayed
-3. Payment is processed and transaction is created with status `pending_payment`
-4. Transaction status is updated to `paid` after successful payment
-5. Listing is marked as `sold`
-6. Email notifications are sent to buyer and seller
-7. Buyer rates the seller (1-5 stars)
-8. Funds are released to seller when rating is submitted
-9. Transaction status is updated to `completed`
+## Payment Flow (Current)
 
-## Email Notifications
+1. Buyer clicks **Purchase** on a listing
+2. API creates Stripe PaymentIntent with `capture_method: 'manual'` (holds funds)
+3. Buyer enters card details and confirms payment
+4. Transaction record created with status `paid`
+5. Listing marked as `sold`
+6. **TODO**: Buyer rates seller (1-5 stars)
+7. **TODO**: Funds captured/released when rating submitted
 
-Email notifications need to be set up using one of these methods:
+---
 
-1. **Supabase Edge Functions**: Create edge functions to send emails via SendGrid, Resend, or similar
-2. **External Service**: Use a service like Resend, SendGrid, or AWS SES
-3. **Supabase SMTP**: Configure custom SMTP in Supabase settings
+## Development vs Production
 
-You'll need to add email sending logic in:
-- After successful purchase (notify buyer and seller)
-- After rating submission (notify seller about released funds)
+### Test Mode (Current)
+- Using Stripe test keys (`pk_test_...`, `sk_test_...`)
+- Payments are simulated (no real charges)
+- Test email `sarmedmahmood91903@gmail.com` allowed for dev
+
+### Production (Before Launch)
+- Switch to Stripe live keys (`pk_live_...`, `sk_live_...`)
+- Remove test email from `check_user_domain()` function
+- Add env vars to Vercel project settings
+- Set up Stripe webhook for payment verification
+
+---
 
 ## Deployment to Vercel
 
-1. Push your code to GitHub
-2. Import your repository in Vercel
-3. Add your environment variables in Vercel dashboard
-4. Deploy!
+1. **Push to GitHub:**
+   ```bash
+   git add .
+   git commit -m "Ready for deployment"
+   git push origin main
+   ```
 
-Vercel will automatically detect Vite and configure the build settings.
+2. **Import to Vercel:**
+   - Go to [vercel.com/new](https://vercel.com/new)
+   - Import your GitHub repository
+   - Vercel auto-detects Vite settings
 
-## Stripe Backend Setup
+3. **Add Environment Variables:**
+   - In Vercel dashboard: **Settings** → **Environment Variables**
+   - Add all variables from `.env.local` (select **Production**, **Preview**, and **Development**)
+   - **DO NOT** add `VITE_` prefix variables to "Development" if you want to use `vercel dev` locally with `.env.local`
 
-For production, you'll need to create backend API routes to:
+4. **Deploy:**
+   - Click **Deploy**
+   - Your app will be live at `https://zipsmarket.vercel.app` (or your custom domain)
 
-1. Create Payment Intents
-2. Handle webhooks for payment confirmations
-3. Process refunds if needed
+---
 
-You can use:
-- Vercel Serverless Functions
-- Supabase Edge Functions
-- A separate Node.js backend
+## Next Steps (After Keys Are Fixed)
 
-Example endpoint structure:
-```
-POST /api/create-payment-intent
-POST /api/webhook (Stripe webhook handler)
-```
+- [ ] Test full purchase flow with Stripe test cards
+- [ ] Add `/api/capture-payment` to release funds after rating
+- [ ] Add email notifications (purchase confirmation, rating alerts)
+- [ ] Add Stripe webhook for server-side payment verification
+- [ ] Hide "Purchase" button on your own listings
+- [ ] Add search bar and price filters
+- [ ] Deploy to Vercel production
+
+---
 
 ## Security Notes
 
-- Email domain validation is enforced at the database level
-- Row Level Security (RLS) is enabled on all tables
-- Users can only access their own transactions
-- Image uploads are restricted to authenticated users
-- All sensitive operations require authentication
+- Email domain validation enforced at database level (trigger)
+- Row Level Security (RLS) on all tables
+- Stripe Secret Key only used server-side (never exposed to frontend)
+- User can only access their own transactions/messages
+- Image uploads restricted to authenticated users
 
-## Future Enhancements
-
-- [ ] Real-time messaging between buyers and sellers
-- [ ] Advanced search and filtering
-- [ ] Categories and tags
-- [ ] Saved/favorite listings
-- [ ] Seller verification badges
-- [ ] Dispute resolution system
-- [ ] Mobile app (React Native)
-
-## License
-
-This project is for University of Akron students only.
+---
 
 ## Support
 
-For issues or questions, please contact the development team.
+For issues or questions, contact the ZipsMarket development team.
+
+**University of Akron Students Only** 🔵🟡

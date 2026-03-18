@@ -3,6 +3,9 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const AuthContext = createContext({})
 
+// DEV ONLY: Test email for development (remove before production)
+const DEV_TEST_EMAIL = 'sarmedmahmood91903@gmail.com'
+
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -13,21 +16,15 @@ export const useAuth = () => {
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(isSupabaseConfigured && supabase))
 
   useEffect(() => {
-    if (!isSupabaseConfigured || !supabase) {
-      setUser(null)
-      setLoading(false)
-      return
-    }
-    // Get initial session
+    if (!isSupabaseConfigured || !supabase) return
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
       setLoading(false)
     })
 
-    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -42,13 +39,11 @@ export const AuthProvider = ({ children }) => {
     if (!isSupabaseConfigured || !supabase) {
       throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local.')
     }
-    // Validate email domain (allow test email for development)
-    // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
-    const testEmail = 'sarmedmahmood91903@gmail.com'
+
     const normalizedEmail = email.trim().toLowerCase()
     
-    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== testEmail) {
-      throw new Error('Only @uakron.edu email addresses are allowed (or the test email)')
+    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
+      throw new Error('Only @uakron.edu email addresses are allowed')
     }
 
     const { data, error } = await supabase.auth.signUp({
@@ -70,14 +65,14 @@ export const AuthProvider = ({ children }) => {
     if (!isSupabaseConfigured || !supabase) {
       throw new Error('Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local.')
     }
-    // Validate email domain (allow test email for development)
-    const testEmail = 'sarmedmahmood91903@gmail.com'
-    if (!email.endsWith('@uakron.edu') && email !== testEmail) {
+
+    const normalizedEmail = email.trim().toLowerCase()
+    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
       throw new Error('Only @uakron.edu email addresses are allowed')
     }
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalizedEmail,
       password,
     })
 

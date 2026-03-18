@@ -7,7 +7,6 @@ import BackButton from '../components/BackButton'
 
 export default function Following() {
   const { user } = useAuth()
-  const [followingIds, setFollowingIds] = useState(new Set())
   const [followingUsers, setFollowingUsers] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -26,7 +25,6 @@ export default function Following() {
 
       if (error) throw error
       const ids = new Set(data?.map(f => f.following_id) || [])
-      setFollowingIds(ids)
       
       // Fetch user profiles for those being followed
       if (ids.size > 0) {

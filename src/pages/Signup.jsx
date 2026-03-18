@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
+// DEV ONLY: Test email for development (remove before production)
+const DEV_TEST_EMAIL = 'sarmedmahmood91903@gmail.com'
+
 export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -18,10 +21,8 @@ export default function Signup() {
     e.preventDefault()
     setError('')
 
-    // Note: Make sure email matches exactly (sarmedmahmood91903@gmail.com with double 'o')
-    const testEmail = 'sarmedmahmood91903@gmail.com'
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== testEmail) {
+    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
       setError('Please use your @uakron.edu email address')
       return
     }
@@ -40,7 +41,6 @@ export default function Signup() {
 
     try {
       const result = await signUp(email.trim().toLowerCase(), password)
-      // Check if email confirmation is required
       if (result.user && !result.session) {
         setError('Please check your email to confirm your account before signing in.')
         setTimeout(() => {

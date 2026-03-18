@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Heart, MessageCircle, ShoppingCart } from 'lucide-react'
 
 export default function ListingCard({ listing, isLiked, onLike, isOwner, user }) {
+  const navigate = useNavigate()
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-all duration-200 flex flex-col relative group">
       {/* Like button - Grailed style */}
@@ -68,12 +69,12 @@ export default function ListingCard({ listing, isLiked, onLike, isOwner, user })
       </Link>
 
       {/* Action Buttons */}
-      {!isOwner && user && (
+      {!isOwner && user && !listing.sold && (
         <div className="p-4 pt-0 flex gap-2">
           <button
             onClick={(e) => {
               e.preventDefault()
-              window.location.href = `/chat/${listing.id}`
+              navigate(`/chat/${listing.id}`)
             }}
             className="flex-1 flex items-center justify-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg transition-colors text-sm"
           >
@@ -83,7 +84,7 @@ export default function ListingCard({ listing, isLiked, onLike, isOwner, user })
           <button
             onClick={(e) => {
               e.preventDefault()
-              window.location.href = `/checkout/${listing.id}`
+              navigate(`/checkout/${listing.id}`)
             }}
             className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-2 px-3 rounded-lg transition-all duration-300 shadow-md hover:shadow-lg text-sm"
           >

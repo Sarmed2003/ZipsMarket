@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
@@ -16,6 +16,22 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState(null)
   const [transactionId, setTransactionId] = useState(null)
   const [error, setError] = useState('')
+  const intentCreatedFor = useRef(null)
+
+  // MUST be before any early returns — React hooks cannot be called conditionally
+  const elementsOptions = useMemo(
+    () =>
+      clientSecret
+        ? {
+            clientSecret,
+            appearance: {
+              theme: 'stripe',
+              variables: { colorPrimary: '#041E42' },
+            },
+          }
+        : null,
+    [clientSecret]
+  )
 
   useEffect(() => {
     fetchListing()
@@ -40,15 +56,23 @@ export default function Checkout() {
 
   useEffect(() => {
     const createIntent = async () => {
-      setError('')
-      setClientSecret(null)
-      setTransactionId(null)
-
       if (!listing || !user) return
+      // Avoid creating a second PaymentIntent when React Strict Mode double-invokes effects.
+      // Unmounting/remounting Elements with a new clientSecret can cause Payment Element load to fail.
+      const key = `${listing.id}-${user.id}`
+      if (intentCreatedFor.current === key) return
+      intentCreatedFor.current = key
+
+      setError('')
+
       if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-        setError('Stripe is not configured yet. Add VITE_STRIPE_PUBLISHABLE_KEY to your environment variables.')
+        const msg = 'Stripe is not configured yet. Add VITE_STRIPE_PUBLISHABLE_KEY to your environment variables.'
+        console.error('[Checkout] Missing Stripe key')
+        setError(msg)
         return
       }
+
+      console.log('[Checkout] Creating payment intent for listing:', listing.id)
 
       try {
         const res = await fetch('/api/create-payment-intent', {
@@ -57,32 +81,39 @@ export default function Checkout() {
           body: JSON.stringify({ listingId: listing.id, buyerId: user.id }),
         })
 
-        // In local dev, /api/* may not exist (Vite won't serve Vercel Functions).
-        // Parse defensively so we can show the real error.
+        console.log('[Checkout] API response status:', res.status)
+
         const raw = await res.text()
+        console.log('[Checkout] API raw response:', raw.substring(0, 200))
+        
         let json = null
         try {
           json = raw ? JSON.parse(raw) : null
-        } catch {
-          // non-JSON response (often 404 HTML)
+        } catch (parseErr) {
+          console.error('[Checkout] Failed to parse API response:', parseErr)
         }
 
         if (!res.ok) {
           const hint =
             res.status === 404
-              ? 'Tip: /api routes run on Vercel. For local Stripe testing, run `npx vercel dev` (or deploy to Vercel).'
+              ? 'Tip: Use `npm run dev:api` so the app and API run on http://localhost:3000 (Vercel dev).'
+              : res.status === 500 && !json?.error
+              ? 'Tip: Use `npm run dev:api` and open http://localhost:3000 so the payment API runs. Check the terminal for API errors.'
               : null
           const message =
             json?.error ||
             (raw ? raw.slice(0, 160) : '') ||
             `Request failed with status ${res.status}`
+          console.error('[Checkout] API error:', message)
           throw new Error(hint ? `${message}\n\n${hint}` : message)
         }
 
         if (!json?.clientSecret) {
+          console.error('[Checkout] Response missing clientSecret:', json)
           throw new Error('Payment intent response missing clientSecret.')
         }
 
+        console.log('[Checkout] Got clientSecret, creating transaction...')
         setClientSecret(json.clientSecret)
 
         // Create a transaction record tied to this PaymentIntent (client-side via RLS)
@@ -99,10 +130,15 @@ export default function Checkout() {
           .select('id')
           .single()
 
-        if (transactionError) throw transactionError
+        if (transactionError) {
+          console.error('[Checkout] Transaction creation error:', transactionError)
+          throw transactionError
+        }
+        
+        console.log('[Checkout] Transaction created:', transaction?.id)
         setTransactionId(transaction?.id || null)
       } catch (e) {
-        console.error('Error creating payment intent:', e)
+        console.error('[Checkout] Error creating payment intent:', e)
         setError(e.message || 'Failed to start checkout')
       }
     }
@@ -112,18 +148,22 @@ export default function Checkout() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-xl">Loading...</div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#041E42] mx-auto mb-4"></div>
+          <div className="text-xl text-gray-700">Loading listing...</div>
+        </div>
       </div>
     )
   }
 
   if (!listing) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-xl mb-4">Listing not found</p>
-          <Link to="/" className="text-blue-900 hover:underline">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-lg shadow-lg">
+          <p className="text-xl mb-4 text-gray-900">Listing not found</p>
+          <p className="text-gray-600 mb-6">This item may have been removed or doesn't exist.</p>
+          <Link to="/" className="inline-block bg-gradient-to-r from-[#041E42] to-[#031832] text-white px-6 py-3 rounded-xl hover:from-[#031832] hover:to-[#041E42] transition-all">
             Go back home
           </Link>
         </div>
@@ -171,12 +211,16 @@ export default function Checkout() {
             </div>
           )}
 
-          {clientSecret ? (
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
+          {clientSecret && stripePromise && elementsOptions ? (
+            <Elements
+              key={clientSecret}
+              stripe={stripePromise}
+              options={elementsOptions}
+            >
               <CheckoutForm
                 listing={listing}
                 transactionId={transactionId}
-                onSuccess={() => navigate('/purchases')}
+                onSuccess={() => navigate('/purchases', { state: { justPurchased: true } })}
               />
             </Elements>
           ) : (

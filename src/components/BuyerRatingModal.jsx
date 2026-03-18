@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Star, X } from 'lucide-react'
 
-export default function RatingModal({ transaction, onClose, onComplete }) {
+export default function BuyerRatingModal({ sale, onClose, onComplete }) {
   const [rating, setRating] = useState(0)
   const [hoveredRating, setHoveredRating] = useState(0)
   const [review, setReview] = useState('')
@@ -11,7 +11,6 @@ export default function RatingModal({ transaction, onClose, onComplete }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-
     if (rating === 0) {
       setError('Please select a rating')
       return
@@ -21,72 +20,15 @@ export default function RatingModal({ transaction, onClose, onComplete }) {
     setError('')
 
     try {
-      // Update transaction with rating
       const { error: updateError } = await supabase
         .from('transactions')
         .update({
-          rating,
-          review,
+          buyer_rating_by_seller: rating,
+          buyer_review_by_seller: review || null,
         })
-        .eq('id', transaction.id)
+        .eq('id', sale.id)
 
       if (updateError) throw updateError
-
-      // Create or update seller rating
-      const { data: existingRating, error: fetchError } = await supabase
-        .from('seller_ratings')
-        .select('*')
-        .eq('seller_id', transaction.seller_id)
-        .single()
-
-      if (fetchError && fetchError.code !== 'PGRST116') {
-        throw fetchError
-      }
-
-      if (existingRating) {
-        const totalRatings = existingRating.total_ratings + 1
-        const newAverage =
-          (existingRating.average_rating * existingRating.total_ratings + rating) / totalRatings
-        const newFiveStarCount = (existingRating.five_star_count ?? 0) + (rating === 5 ? 1 : 0)
-
-        const { error: ratingUpdateError } = await supabase
-          .from('seller_ratings')
-          .update({
-            average_rating: newAverage,
-            total_ratings: totalRatings,
-            five_star_count: newFiveStarCount,
-          })
-          .eq('seller_id', transaction.seller_id)
-        if (ratingUpdateError) throw ratingUpdateError
-      } else {
-        const { error: ratingInsertError } = await supabase.from('seller_ratings').insert({
-          seller_id: transaction.seller_id,
-          average_rating: rating,
-          total_ratings: 1,
-          five_star_count: rating === 5 ? 1 : 0,
-        })
-        if (ratingInsertError) throw ratingInsertError
-      }
-
-      // Capture the Stripe PaymentIntent (releases held funds to platform balance).
-      // capture-payment.js verifies status === 'paid', then sets it to 'completed' + funds_released = true.
-      const captureRes = await fetch('/api/capture-payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: transaction.id }),
-      })
-      const captureData = captureRes.ok ? await captureRes.json().catch(() => ({})) : null
-      if (!captureRes.ok) {
-        throw new Error(captureData?.error || `Failed to release funds (${captureRes.status})`)
-      }
-
-      // Send funds-released notification to seller (non-blocking — don't fail the rating on email error)
-      fetch('/api/send-order-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactionId: transaction.id, event: 'funds_released' }),
-      }).catch((err) => console.warn('[RatingModal] email notification failed:', err))
-
       onComplete()
     } catch (err) {
       setError(err.message || 'Failed to submit rating')
@@ -98,7 +40,7 @@ export default function RatingModal({ transaction, onClose, onComplete }) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Rate Your Purchase</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Rate Buyer / Experience</h2>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -116,7 +58,7 @@ export default function RatingModal({ transaction, onClose, onComplete }) {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-3">
-              How would you rate this seller?
+              How would you rate this buyer or the experience? (1–5 stars)
             </label>
             <div className="flex items-center gap-2">
               {[1, 2, 3, 4, 5].map((star) => (
@@ -141,16 +83,16 @@ export default function RatingModal({ transaction, onClose, onComplete }) {
           </div>
 
           <div>
-            <label htmlFor="review" className="block text-sm font-medium text-gray-700 mb-2">
-              Share your experience (optional)
+            <label htmlFor="buyer-review" className="block text-sm font-medium text-gray-700 mb-2">
+              Describe your experience (optional)
             </label>
             <textarea
-              id="review"
+              id="buyer-review"
               value={review}
               onChange={(e) => setReview(e.target.value)}
-              rows={4}
+              rows={3}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Tell others about your experience with this seller..."
+              placeholder="e.g. Smooth communication, fast payment..."
             />
           </div>
 
@@ -165,7 +107,7 @@ export default function RatingModal({ transaction, onClose, onComplete }) {
             <button
               type="submit"
               disabled={loading || rating === 0}
-              className="flex-1 bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+              className="flex-1 bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Submitting...' : 'Submit Rating'}
             </button>

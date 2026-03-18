@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowLeft, UserPlus, UserCheck, Heart, Edit2 } from 'lucide-react'
+import { ArrowLeft, Home, UserPlus, UserCheck, Heart, Edit2 } from 'lucide-react'
 
 export default function ListingDetail() {
   const { id } = useParams()
@@ -60,7 +60,7 @@ export default function ListingDetail() {
       }
 
       // Fetch profile for the seller
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('id, email, profile_picture, bio')
         .eq('id', listingData.user_id)
@@ -161,13 +161,22 @@ export default function ListingDetail() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-blue-900 mb-6"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back
-        </button>
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 hover:text-[#041E42] transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Back
+          </button>
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-gray-600 hover:text-[#041E42] transition-colors"
+          >
+            <Home className="w-5 h-5" />
+            Home
+          </Link>
+        </div>
 
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="grid md:grid-cols-2 gap-8 p-8">
@@ -320,13 +329,19 @@ export default function ListingDetail() {
                 </div>
               )}
 
-              {!isOwner && (
+              {!isOwner && !listing.sold && (
                 <Link
                   to={`/checkout/${listing.id}`}
                   className="block w-full bg-gradient-to-r from-[#041E42] to-[#031832] hover:from-[#031832] hover:to-[#041E42] text-white font-semibold py-4 px-6 rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-[1.02] text-center"
                 >
                   Purchase Item
                 </Link>
+              )}
+
+              {!isOwner && listing.sold && (
+                <div className="w-full bg-gray-100 text-gray-500 font-semibold py-4 px-6 rounded-xl text-center cursor-not-allowed">
+                  Sold
+                </div>
               )}
 
               {isOwner && (
