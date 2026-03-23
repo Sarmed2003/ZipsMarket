@@ -3,15 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Mail, Lock, AlertCircle, ArrowLeft, Eye, EyeOff } from 'lucide-react'
 
-// DEV ONLY: Test email for development (remove before production)
-const DEV_TEST_EMAIL = 'sarmedmahmood91903@gmail.com'
+const DEV_TEST_EMAIL = import.meta.env.VITE_DEV_TEST_EMAIL || null
 
 export default function Signup() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showPassword, setShowPassword] = useState(true)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(true)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { signUp } = useAuth()
@@ -22,7 +21,7 @@ export default function Signup() {
     setError('')
 
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
+    if (!normalizedEmail.endsWith('@uakron.edu') && (!DEV_TEST_EMAIL || normalizedEmail !== DEV_TEST_EMAIL)) {
       setError('Please use your @uakron.edu email address')
       return
     }

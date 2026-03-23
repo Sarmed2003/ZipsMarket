@@ -3,8 +3,9 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 
 const AuthContext = createContext({})
 
-// DEV ONLY: Test email for development (remove before production)
-const DEV_TEST_EMAIL = 'sarmedmahmood91903@gmail.com'
+// Dev-only email bypass. Only active when VITE_DEV_TEST_EMAIL is set in .env.local.
+// Production builds on Vercel won't have this variable, so the bypass is automatically off.
+const DEV_TEST_EMAIL = import.meta.env.VITE_DEV_TEST_EMAIL || null
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
@@ -42,7 +43,7 @@ export const AuthProvider = ({ children }) => {
 
     const normalizedEmail = email.trim().toLowerCase()
     
-    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
+    if (!normalizedEmail.endsWith('@uakron.edu') && (!DEV_TEST_EMAIL || normalizedEmail !== DEV_TEST_EMAIL)) {
       throw new Error('Only @uakron.edu email addresses are allowed')
     }
 
@@ -50,7 +51,7 @@ export const AuthProvider = ({ children }) => {
       email: normalizedEmail,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}`,
       },
     })
 
@@ -67,7 +68,7 @@ export const AuthProvider = ({ children }) => {
     }
 
     const normalizedEmail = email.trim().toLowerCase()
-    if (!normalizedEmail.endsWith('@uakron.edu') && normalizedEmail !== DEV_TEST_EMAIL) {
+    if (!normalizedEmail.endsWith('@uakron.edu') && (!DEV_TEST_EMAIL || normalizedEmail !== DEV_TEST_EMAIL)) {
       throw new Error('Only @uakron.edu email addresses are allowed')
     }
 
