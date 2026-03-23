@@ -2,8 +2,9 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { loadEnvLocal, json } from './_lib/env.js'
 
-// Platform fee as a fraction (9% mirrors Grailed's commission model)
-const PLATFORM_FEE_PERCENT = 0.09
+// Platform fee as a fraction. Set to 0 for now (no commission).
+// When ready to monetize, change to e.g. 0.09 for 9%.
+const PLATFORM_FEE_PERCENT = 0
 
 export default async function handler(req, res) {
   loadEnvLocal()
@@ -98,9 +99,11 @@ export default async function handler(req, res) {
 
     // If the seller has completed Stripe Connect onboarding, route funds to them
     if (sellerStripeId) {
-      const applicationFee = Math.round(amountCents * PLATFORM_FEE_PERCENT)
-      piParams.application_fee_amount = applicationFee
       piParams.transfer_data = { destination: sellerStripeId }
+      const applicationFee = Math.round(amountCents * PLATFORM_FEE_PERCENT)
+      if (applicationFee > 0) {
+        piParams.application_fee_amount = applicationFee
+      }
     }
 
     const paymentIntent = await stripe.paymentIntents.create(piParams)

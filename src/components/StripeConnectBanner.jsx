@@ -67,7 +67,7 @@ export default function StripeConnectBanner({ userId, stripeAccountId, onboardin
           <h3 className="font-semibold text-green-800">Stripe Payments Active</h3>
           <p className="text-sm text-green-700 mt-1">
             Your account is set up to receive payouts. When buyers purchase your items,
-            funds are deposited directly to your bank account minus the 9% platform fee.
+            funds are deposited directly to your bank account.
           </p>
         </div>
       </div>
@@ -91,8 +91,8 @@ export default function StripeConnectBanner({ userId, stripeAccountId, onboardin
           <h3 className="font-semibold text-amber-800">Set Up Payouts to Get Paid</h3>
           <p className="text-sm text-amber-700 mt-1 mb-3">
             Connect your bank account through Stripe to receive payments when your items sell.
-            Setup takes about 2 minutes. ZipsMarket takes a 9% commission on each sale
-            (similar to Grailed). The rest goes directly to you.
+            Setup takes about 2 minutes. There is currently no platform commission —
+            100% of the sale price goes directly to you.
           </p>
 
           {error && (
