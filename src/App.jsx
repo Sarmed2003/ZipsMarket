@@ -1,21 +1,35 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { isSupabaseConfigured } from './lib/supabase'
-import Login from './pages/Login'
-import Signup from './pages/Signup'
-import Home from './pages/Home'
-import ListingDetail from './pages/ListingDetail'
-import CreateListing from './pages/CreateListing'
-import EditListing from './pages/EditListing'
-import Purchases from './pages/Purchases'
-import Profile from './pages/Profile'
-import Chat from './pages/Chat'
-import Messages from './pages/Messages'
-import Likes from './pages/Likes'
-import Following from './pages/Following'
-import Checkout from './pages/Checkout'
+import ErrorBoundary from './components/ErrorBoundary'
 import './App.css'
+
+const Login = lazy(() => import('./pages/Login'))
+const Signup = lazy(() => import('./pages/Signup'))
+const Home = lazy(() => import('./pages/Home'))
+const ListingDetail = lazy(() => import('./pages/ListingDetail'))
+const CreateListing = lazy(() => import('./pages/CreateListing'))
+const EditListing = lazy(() => import('./pages/EditListing'))
+const Purchases = lazy(() => import('./pages/Purchases'))
+const Profile = lazy(() => import('./pages/Profile'))
+const Chat = lazy(() => import('./pages/Chat'))
+const Messages = lazy(() => import('./pages/Messages'))
+const Likes = lazy(() => import('./pages/Likes'))
+const Following = lazy(() => import('./pages/Following'))
+const Checkout = lazy(() => import('./pages/Checkout'))
+
+function RouteSpinner() {
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 border-4 border-[#041E42] border-t-transparent rounded-full animate-spin" />
+        <span className="text-gray-500 text-sm font-medium">Loading…</span>
+      </div>
+    </div>
+  )
+}
 
 function AppRoutes() {
   const { user, loading } = useAuth()
@@ -43,122 +57,122 @@ function AppRoutes() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-xl">Loading...</div>
-      </div>
-    )
+    return <RouteSpinner />
   }
 
   return (
-    <Routes>
-      <Route
-        path="/login"
-        element={user ? <Navigate to="/" replace /> : <Login />}
-      />
-      <Route
-        path="/signup"
-        element={user ? <Navigate to="/" replace /> : <Signup />}
-      />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <Home />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/listing/:id"
-        element={
-          <ProtectedRoute>
-            <ListingDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/create-listing"
-        element={
-          <ProtectedRoute>
-            <CreateListing />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/listing/:id/edit"
-        element={
-          <ProtectedRoute>
-            <EditListing />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/purchases"
-        element={
-          <ProtectedRoute>
-            <Purchases />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/profile"
-        element={
-          <ProtectedRoute>
-            <Profile />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/chat/:id"
-        element={
-          <ProtectedRoute>
-            <Chat />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/messages"
-        element={
-          <ProtectedRoute>
-            <Messages />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/likes"
-        element={
-          <ProtectedRoute>
-            <Likes />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/following"
-        element={
-          <ProtectedRoute>
-            <Following />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/checkout/:id"
-        element={
-          <ProtectedRoute>
-            <Checkout />
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
+    <Suspense fallback={<RouteSpinner />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={user ? <Navigate to="/" replace /> : <Login />}
+        />
+        <Route
+          path="/signup"
+          element={user ? <Navigate to="/" replace /> : <Signup />}
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <Home />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/listing/:id"
+          element={
+            <ProtectedRoute>
+              <ListingDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/create-listing"
+          element={
+            <ProtectedRoute>
+              <CreateListing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/listing/:id/edit"
+          element={
+            <ProtectedRoute>
+              <EditListing />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/purchases"
+          element={
+            <ProtectedRoute>
+              <Purchases />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/chat/:id"
+          element={
+            <ProtectedRoute>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/messages"
+          element={
+            <ProtectedRoute>
+              <Messages />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/likes"
+          element={
+            <ProtectedRoute>
+              <Likes />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/following"
+          element={
+            <ProtectedRoute>
+              <Following />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/checkout/:id"
+          element={
+            <ProtectedRoute>
+              <Checkout />
+            </ProtectedRoute>
+          }
+        />
+      </Routes>
+    </Suspense>
   )
 }
 
 function App() {
   return (
-    <Router>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
-    </Router>
+    <ErrorBoundary>
+      <Router>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </Router>
+    </ErrorBoundary>
   )
 }
 
