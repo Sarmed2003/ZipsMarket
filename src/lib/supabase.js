@@ -1,10 +1,19 @@
 import { createClient } from '@supabase/supabase-js'
 
-export const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
-export const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+const rawUrl = (import.meta.env.VITE_SUPABASE_URL || '').trim()
+const rawKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey)
+export const supabaseUrl = rawUrl
+export const supabaseAnonKey = rawKey
 
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null
+export const isSupabaseConfigured = Boolean(rawUrl && rawKey)
+
+let client = null
+if (isSupabaseConfigured) {
+  try {
+    client = createClient(rawUrl, rawKey)
+  } catch (err) {
+    console.error('Supabase client init failed:', err.message)
+  }
+}
+export const supabase = client
