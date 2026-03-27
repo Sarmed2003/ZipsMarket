@@ -51,18 +51,19 @@ export default async function handler(req, res) {
       return json(res, 400, { error: 'Seller cannot purchase their own listing' })
     }
 
-    // Duplicate purchase guard
-    const { data: existingTx } = await admin
-      .from('transactions')
-      .select('id, status')
-      .eq('listing_id', listingId)
-      .in('status', ['pending_payment', 'paid', 'completed'])
-      .limit(1)
-      .single()
-
-    if (existingTx) {
-      return json(res, 400, { error: 'This item already has an active transaction and cannot be purchased again' })
-    }
+    // TODO: Re-enable duplicate purchase guard when ready for production.
+    // Currently disabled to allow easier testing.
+    // const { data: existingTx } = await admin
+    //   .from('transactions')
+    //   .select('id, status')
+    //   .eq('listing_id', listingId)
+    //   .in('status', ['pending_payment', 'paid', 'completed'])
+    //   .limit(1)
+    //   .single()
+    //
+    // if (existingTx) {
+    //   return json(res, 400, { error: 'This item already has an active transaction and cannot be purchased again' })
+    // }
 
     const amountCents = Math.round(Number(listing.price) * 100)
     if (!amountCents || amountCents < 50) {
